@@ -1,0 +1,58 @@
+.\" Manpage for backup_btrfs.
+.TH man 8 "03 Oct 2019" "1.0" "backup_btrfs man page"
+.SH NAME
+backup_btrfs \- Manage btrfs subvolume backups 
+.SH SYNOPSIS
+.B backup_btrfs
+add --name \fI\,NAME\fR --source \fI\,SUBVOLUME\fR --snapshot-dir \fI\,DIR\fR --backup-device \fI\,DEV\fR --backup-dir \fI\,DIR\fR [--snapshots \fI\,NUMBER\fR]
+.br
+.B backup_btrfs
+modify --name \fI\,NAME\fR --source \fI\,SUBVOLUME\fR --snapshot-dir \fI\,DIR\fR --backup-device \fI\,DEV\fR --backup-dir \fI\,DIR\fR [--snapshots \fI\,NUMBER\fR]
+.br
+.B backup_btrfs
+remove \fI\,NAME\fR...
+.br
+.B backup_btrfs
+list
+.br
+.B backup_btrfs
+run [--noumount] \fI\,NAME\fR...
+.br
+.SH DESCRIPTION
+backup_btrfs is a program for automating btrfs-subvolume based backups.
+.SH OPTIONS
+\fB\,--backup-device\fR \fI\,DEV\fR
+.br
+.IP
+Specify the device to backup to, must be an absolute path to a block device or a UUID. The program will automatically detect if the backup device is a LUKS-container or a regular partition.
+.P
+\fB\,--backup-dir\fR \fI\,DIR\fR
+.br
+.IP
+Set the target folder on the backup drive where the backup snapshots should be created, must be a relative path.
+.P
+\fB\,--name\fR \fI\,NAME\fR
+.br
+.IP
+Set the name for the backup if being used with the "add"-command. Every backup needs to have a name as identifier. A backup is run by appending its name to the "run" command. When applied to the "modify"-command, this option will specify which backup is to be modified.
+.P
+\fB\,--snapshot-dir\fR \fI\,DIR\fR
+.br
+.IP
+Specify a directory where the snapshots of the source subvolume will be saved. The directory will be created if it doesn't exist. When used via the "modify"-command, the contents of the old snapshot directory will not be moved to the new location. The Argument must be an absolute path.
+.P
+\fB\,--snapshots\fR \fI\,NUMBER\fR
+.br
+.IP
+Set the amount of snapshots backup_btrfs will preserve. If this number is set to n, backup_btrfs will keep the n newest snapshots after running a backup, older snapshots will be deleted both on the source drive and the backup drive. NUMBER must be an integer between 1 and 255.
+\fB\,--source\fR \fI\,SUBVOLUME\fR
+.br
+.IP
+Specify the btrfs subvolume to backup, must be an absolute path.
+.P
+.SH SEE ALSO
+btrfs(8), btrfs-subvolume(8), btrfs-send(8), btrfs-receive(8) 
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Jörg Walter

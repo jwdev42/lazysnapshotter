@@ -1,0 +1,6 @@
+-Cleanup exception mess.
+-add debug mode.
+-add support for custom config file path.
+-write documentation
+-add headers with author and license to each file.
+-add GPLv3 license
