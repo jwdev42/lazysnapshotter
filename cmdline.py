@@ -32,6 +32,8 @@ ACTION_REMOVE = 'remove'
 ACTION_LIST = 'list'
 ACTION_RUN = 'run'
 ACTION_GLOBAL = 'global'
+ARG_PRE_CONFIGFILE = '--configfile'
+ARG_PRE_DEBUGMODE = '--debug'
 ARG_NAME = '--name'
 ARG_SOURCE = '--source'
 ARG_TARGET = '--backup-device'
@@ -48,10 +50,13 @@ ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
 args = deque(sys.argv)
 
 class ProcessedCMDline():
-	def __init__(self, action: str, data = None):
-		self.action = action
-		self.data = data
-
+	"""Container class that stores the processed command line."""
+	def __init__(self):
+		res.action = None
+		res.globaldata = dict()
+		res.data = dict()
+	
+	
 def displayValidCommands():
 	print('Valid commands:')
 	print('\t{}'.format(ACTION_GLOBAL))
@@ -69,24 +74,29 @@ def begin():
 		return None
 
 def _begin():
-	args.popleft()
+	res = ProcessedCMDline()
+	args.popleft() #remove program name from args
+	if not len(args) > 0:
+		displayValidCommands()
+		return None
+	_do_pre(res)
 	if len(args) > 0:
-		action = args[0]
+		res.action = args[0]
 		args.popleft()
-		if action == ACTION_ADD:
-			return _do_add_modify(ACTION_ADD)
-		elif action == ACTION_MODIFY:
-			return _do_add_modify(ACTION_MODIFY)
-		elif action == ACTION_REMOVE:
-			return _do_remove()
-		elif action == ACTION_LIST:
-			return _do_list()
-		elif action == ACTION_RUN:
-			return _do_run()
-		elif action == ACTION_GLOBAL:
-			return _do_global()
+		if res.action == ACTION_ADD:
+			return _do_add_modify(res)
+		elif res.action == ACTION_MODIFY:
+			return _do_add_modify(res)
+		elif res.action == ACTION_REMOVE:
+			return _do_remove(res)
+		elif res.action == ACTION_LIST:
+			return _do_list(res)
+		elif res.action == ACTION_RUN:
+			return _do_run(res)
+		elif res.action == ACTION_GLOBAL:
+			return _do_global(res)
 		else:
-			raise InvalidCommandError(action)
+			raise InvalidCommandError(res.action)
 	else:
 		displayValidCommands()
 	return None
@@ -159,18 +169,34 @@ def _process_run_backupid(args):
 	else:
 		raise InvalidArgumentOptionError(ERR_BACKUP_ID.format(args[0]))
 
-def _do_list():
-	return ProcessedCMDline(ACTION_LIST)
+def _do_pre(res):
+	"""Process global command line arguments before an action is applied"""
+	while len(args) > 0:
+		arg = args[0]
+		args.popleft()
+		if arg == ARG_PRE_CONFIGFILE:
+			_arg_helper(res.globaldata, arg, 1)
+			config = Path(args(0))
+			verify.requireExistingPath(config)
+			res.globaldata[ARG_PRE_CONFIGFILE] = config
+			args.popleft()
+		elif arg == ARG_PRE_DEBUGMODE:
+			_arg_helper(res.globaldata, arg, 0)
+			res.globaldata[ARG_PRE_DEBUGMODE] = True
+		else:
+			args.appendleft(arg)
+			return
 
-def _do_run():
-	res = ProcessedCMDline(ACTION_RUN, list())
+def _do_list(res):
+	return res
+
+def _do_run(res):
 	_process_run(args, res.data)
 	if len(res.data) == 0:
 		raise MissingArgumentOptionError('Action "'+ ACTION_RUN + '" needs an Argument!')
 	return res
 
-def _do_remove():
-	res = ProcessedCMDline(ACTION_REMOVE, list())
+def _do_remove(res):
 	if len(args) == 0:
 		raise MissingArgumentOptionError('Action "'+ ACTION_REMOVE + '" needs an Argument!')
 	while len(args) > 0:
@@ -181,9 +207,7 @@ def _do_remove():
 		args.popleft()
 	return res
 
-def _do_add_modify(action: str):
-	res = ProcessedCMDline(action)
-	res.data = dict()
+def _do_add_modify(res):
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft() #args[0] now points to first parameter
@@ -221,9 +245,7 @@ def _do_add_modify(action: str):
 			raise InvalidArgumentError(arg)
 	return res
 
-def _do_global():
-	res = ProcessedCMDline(ACTION_GLOBAL)
-	res.data = dict()
+def _do_global(res):
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft() #args[0] now points to first parameter

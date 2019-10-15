@@ -66,5 +66,4 @@ def requireExistingPath(path):
 
 class VerificationError(Exception):
 	"""Thrown if a require* function cannot verify its condition."""
-	def __init__(self, msg):
-		self.message = msg
+	pass
