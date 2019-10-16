@@ -26,9 +26,30 @@ import globalstuff
 import libbackup
 import verify
 import mounts
+import util
 
 from uuid import UUID
 from pathlib import Path
+
+def globalcmdline():
+	"""Parse the global (pre-action) part of the command line options, then load its data into the program."""
+	pcmd = cmdline.preAction()
+	for k, v in pcmd.data.items():
+		if k == cmdline.ARG_PRE_CONFIGFILE:
+			globalstuff.config_backups = v
+		elif k == cmdline.ARG_PRE_LOGFILE:
+			globalstuff.logfile = v
+			globalstuff.logfile_from_cmdline = True
+		elif k == cmdline.ARG_PRE_LOGLEVEL:
+			ll = util.str_to_loglevel(v)
+			if ll is None:
+				raise globalstuff.Bug
+			if not globalstuff.debug_mode:
+				globalstuff.loglevel = ll
+				globalstuff.loglevel_from_cmdline = True
+		elif k == cmdline.ARG_PRE_DEBUGMODE and v:
+			globalstuff.debug_mode = True
+			globalstuff.loglevel = logging.DEBUG
 
 def setupLogger():
 	f = '%(asctime)s: %(levelname)s - %(message)s'
@@ -36,6 +57,7 @@ def setupLogger():
 	return logging.getLogger(__name__)
 	
 def loadConfig():
+	"""Reads the configuration file and loads its global options."""
 	cf = configfile.Configfile(globalstuff.config_backups)
 	cf.read()
 	cf.loadGlobals()
@@ -120,33 +142,17 @@ def runBackup(cf, backup_params):
 		backup.closeLuks()
 	
 def main():
-
 	try:
-		cf = loadConfig()
+		globalcmdline()
 		logger = setupLogger()
-	except Exception as e:
-		globalstuff.status = globalstuff.EXIT_FAILURE
-		globalstuff.printException(e, trace = True)
-		return globalstuff.status
-	try:
-		pcmd = cmdline.begin()
-		if pcmd is None:
-			return globalstuff.status
+		pcmd = cmdline.action()
 		
 		cf = loadConfig()
 		if pcmd.action == cmdline.ACTION_ADD:
-			try:
-				cf.addConfigEntryFromCmdline(pcmd.data)
-			except configfile.EntryIncompleteException as e:
-				globalstuff.printException(e)
-				return globalstuff.status
+			cf.addConfigEntryFromCmdline(pcmd.data)
 			cf.write()
 		elif pcmd.action == cmdline.ACTION_MODIFY:
-			try:
-				cf.modifyConfigEntryFromCmdline(pcmd.data)
-			except configfile.EntryIncompleteException as e:
-				globalstuff.printException(e)
-				return globalstuff.status
+			cf.modifyConfigEntryFromCmdline(pcmd.data)
 			cf.write()
 		elif pcmd.action == cmdline.ACTION_REMOVE:
 			for e in pcmd.data:
@@ -166,11 +172,10 @@ def main():
 			finally:
 				cleanMountDir()
 	except Exception as e:
-		globalstuff.printException(e, trace = True)
-		if hasattr(e, 'message'):
-			logger.error('{}: {}'.format(type(e).__name__, e.message))
-		else:
-			logger.error(str(e))
-	return globalstuff.status
+		globalstuff.printException(e)
+		if globalstuff.status == globalstuff.EXIT_SUCCESS:
+			globalstuff.status == globalstuff.EXIT_FAILURE
+	finally:
+		sys.exit(globalstuff.status)
 
 main()

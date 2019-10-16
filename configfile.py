@@ -23,6 +23,7 @@ import copy
 import globalstuff
 import cmdline
 import verify
+import util
 
 from uuid import UUID
 from pathlib import Path
@@ -78,11 +79,9 @@ class Configfile:
 					ENTRY_TARGET: False, \
 					ENTRY_TARGETDIR: False }
 		section = self._cp[name]
-		
 		for k, v in section.items():
 			if k in has:
 				has[k] = True
-		
 		for k, v in has.items():
 			if not has[k]:
 				return False
@@ -156,23 +155,14 @@ class Configfile:
 		sectionName = 'GLOBALS'
 		defaults = self._cp.defaults()
 		for k, v in defaults.items():
-			if k == GLOBAL_LOGFILE:
+			if k == GLOBAL_LOGFILE and not logfile_from_cmdline:
 				p = Path(v)
 				verify.requireAbsolutePath(p)
 				globalstuff.logfile = Path(v)
-			elif k == GLOBAL_LOGLEVEL:
-				if not v in verify.LOGLEVELS:
+			elif k == GLOBAL_LOGLEVEL and not (globalstuff.debug_mode or globalstuff.loglevel_from_cmdline):
+				ll = util.str_to_loglevel(v)
+				if ll is None:
 					raise InvalidValueError(sectionName, k, v)
-				if v == 'CRITICAL':
-					globalstuff.loglevel = logging.CRITICAL
-				elif v == 'ERROR':
-					globalstuff.loglevel = logging.ERROR
-				elif v == 'WARNING':
-					globalstuff.loglevel = logging.WARNING
-				elif v == 'INFO':
-					globalstuff.loglevel = logging.INFO
-				elif v == 'DEBUG':
-					globalstuff.loglevel = logging.DEBUG
 			elif k == GLOBAL_MOUNTDIR:
 				p = Path(v)
 				verify.requireAbsolutePath(p)

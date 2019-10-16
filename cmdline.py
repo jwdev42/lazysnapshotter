@@ -34,6 +34,8 @@ ACTION_RUN = 'run'
 ACTION_GLOBAL = 'global'
 ARG_PRE_CONFIGFILE = '--configfile'
 ARG_PRE_DEBUGMODE = '--debug'
+ARG_PRE_LOGFILE = '--logfile'
+ARG_PRE_LOGLEVEL = '--loglevel'
 ARG_NAME = '--name'
 ARG_SOURCE = '--source'
 ARG_TARGET = '--backup-device'
@@ -41,20 +43,20 @@ ARG_TARGETDIR = '--backup-dir'
 ARG_SNAPSHOTDIR = '--snapshot-dir'
 ARG_SNAPSHOTS = '--snapshots'
 ARG_NOUMOUNT = '--nounmount'
-ARG_LOGFILE = '--log'
+ARG_LOGFILE = '--logfile'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
 
 ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
 
 args = deque(sys.argv)
+args.popleft() #remove program name from args
 
 class ProcessedCMDline():
 	"""Container class that stores the processed command line."""
 	def __init__(self):
-		res.action = None
-		res.globaldata = dict()
-		res.data = dict()
+		self.action = None
+		self.data = dict()
 	
 	
 def displayValidCommands():
@@ -66,20 +68,21 @@ def displayValidCommands():
 	print('\t{}'.format(ACTION_LIST))
 	print('\t{}'.format(ACTION_RUN))
 
-def begin():
-	try:
-		return _begin()
-	except (CommandLineError, verify.VerificationError) as e:
-		print(e, file = sys.stderr)
-		return None
-
-def _begin():
+def preAction():
 	res = ProcessedCMDline()
-	args.popleft() #remove program name from args
+	_do_pre(res)
+	return res
+
+def action():
+	"""Parse rest of the command line after the global options have been processed."""
+	return _action()
+
+def _action():
+	"""Implementation to be called by action()."""
+	res = ProcessedCMDline()
 	if not len(args) > 0:
 		displayValidCommands()
 		return None
-	_do_pre(res)
 	if len(args) > 0:
 		res.action = args[0]
 		args.popleft()
@@ -169,20 +172,23 @@ def _process_run_backupid(args):
 	else:
 		raise InvalidArgumentOptionError(ERR_BACKUP_ID.format(args[0]))
 
+def _pre_path_helper(arg, data, path):
+	_arg_helper(data, arg, 1)
+	if not path.is_absolute():
+		path = path.resolve()
+	data[arg] = path
+	args.popleft()
+
 def _do_pre(res):
 	"""Process global command line arguments before an action is applied"""
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft()
-		if arg == ARG_PRE_CONFIGFILE:
-			_arg_helper(res.globaldata, arg, 1)
-			config = Path(args(0))
-			verify.requireExistingPath(config)
-			res.globaldata[ARG_PRE_CONFIGFILE] = config
-			args.popleft()
+		if arg == ARG_PRE_CONFIGFILE or arg == ARG_PRE_LOGFILE:
+			_pre_path_helper(arg, res.data, Path(args[0]))
 		elif arg == ARG_PRE_DEBUGMODE:
-			_arg_helper(res.globaldata, arg, 0)
-			res.globaldata[ARG_PRE_DEBUGMODE] = True
+			_arg_helper(res.data, arg, 0)
+			res.data[ARG_PRE_DEBUGMODE] = True
 		else:
 			args.appendleft(arg)
 			return
