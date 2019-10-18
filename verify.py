@@ -63,7 +63,7 @@ def requireExistingPath(path):
 	if not isinstance(path, Path):
 		raise TypeError('arg 1 must be of pathlib.Path')
 	if not path.exists():
-		raise VerificationError('Path "{}" does not exist in the file system'.format(str(path)))
+		raise VerificationError('Path "{}" does not exist in the file system!'.format(str(path)))
 
 class VerificationError(Exception):
 	"""Thrown if a require* function cannot verify its condition."""

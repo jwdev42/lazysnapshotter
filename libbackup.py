@@ -121,7 +121,7 @@ class Backup:
 	def _setMountPoint(self, path):
 		verify.requireAbsolutePath(path)
 		if not path.is_mount():
-			raise globalstuff.PathIsNoMountpointError
+			raise globalstuff.ApplicationError('Path "{}" is expected to be a mount point!'.format(path))
 		self._mountPoint = path
 	
 	def getEntry(self):
@@ -160,9 +160,9 @@ class Backup:
 		e.setTargetDevice(p)
 	
 	def closeLuks(self):
-		if self.isMounted():
-			raise globalstuff.CryptDeviceStillMountedError
 		dev = self.getEntry().getTargetDevice()
+		if self.isMounted():
+			raise globalstuff.ApplicationError('Error closing LUKS container: "{}". It is still mounted!'.format(str(dev)))
 		verify.requireExistingPath(dev)
 		command = [ shutil.which('cryptsetup'), 'close', str(dev) ]
 		res = subprocess.run(command)
@@ -177,7 +177,7 @@ class Backup:
 				verify.requireAbsolutePath(globalstuff.mountdir)
 				verify.requireExistingPath(globalstuff.mountdir)
 			except VerificationError as e:
-				raise BackupError('Mount directory "{}" is either nonexistent or a relative Path.'.format(globalstuff.mountdir))
+				raise globalstuff.ApplicationError('Error mounting directory "{}". It is either nonexistent or a relative Path.'.format(globalstuff.mountdir))
 			mountpath = globalstuff.mountdir / appendix
 		else:
 			mountpath = path
@@ -207,7 +207,7 @@ class Backup:
 	def unmount(self):
 		verify.requireExistingPath(self._mountPoint)
 		if not self.isMounted():
-			raise globalstuff.MountPointError(str(self._mountPoint))
+			raise globalstuff.ApplicationError('"{}" is expected to be mounted!'.format(str(self._mountPoint)))
 		command = [ shutil.which('umount'), str(self._mountPoint) ]
 		res = subprocess.run(command)
 		res.check_returncode()

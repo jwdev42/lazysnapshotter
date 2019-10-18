@@ -35,7 +35,10 @@ def globalcmdline():
 	"""Parse the global (pre-action) part of the command line options, then load its data into the program."""
 	pcmd = cmdline.preAction()
 	for k, v in pcmd.data.items():
-		if k == cmdline.ARG_PRE_CONFIGFILE:
+		if k == cmdline.ARG_PRE_DEBUGMODE and v:
+			globalstuff.debug_mode = True
+			globalstuff.loglevel = logging.DEBUG
+		elif k == cmdline.ARG_PRE_CONFIGFILE:
 			globalstuff.config_backups = v
 		elif k == cmdline.ARG_PRE_LOGFILE:
 			globalstuff.logfile = v
@@ -47,9 +50,7 @@ def globalcmdline():
 			if not globalstuff.debug_mode:
 				globalstuff.loglevel = ll
 				globalstuff.loglevel_from_cmdline = True
-		elif k == cmdline.ARG_PRE_DEBUGMODE and v:
-			globalstuff.debug_mode = True
-			globalstuff.loglevel = logging.DEBUG
+
 
 def setupLogger():
 	f = '%(asctime)s: %(levelname)s - %(message)s'
@@ -69,7 +70,7 @@ def createMountDir():
 		os.mkdir(globalstuff.mountdir)
 		logger.debug('Created mount directory "{}".'.format(str(globalstuff.mountdir)))
 	elif not os.path.isdir(globalstuff.mountdir):
-		raise globalstuff.DirectoryExpectedError(globalstuff.mountdir)
+		raise globalstuff.ApplicationError('"{}" is expected to be a directory!'.format(globalstuff.mountdir))
 	else:
 		logger.debug('Mount directory "{}" already exists.'.format(str(globalstuff.mountdir)))
 

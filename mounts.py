@@ -57,15 +57,16 @@ def isMountPoint(path):
 
 def getBlockDeviceFromUUID(block_uuid: UUID):
 	workdir = Path(os.getcwd())
-	temp_workdir = Path('/dev/disk/by-uuid/')
-	os.chdir(temp_workdir)
-	symlink = Path(str(block_uuid))
-	verify.requireRelativePath(symlink)
-	if not symlink.exists():
-		raise globalstuff.PathDoesNotExistError(symlink)
-	resolved_path = Path(os.readlink(symlink))
-	resolved_path = resolved_path.resolve(True)
-	os.chdir(workdir)
+	try:
+		temp_workdir = Path('/dev/disk/by-uuid/')
+		os.chdir(temp_workdir)
+		symlink = Path(str(block_uuid))
+		verify.requireRelativePath(symlink)
+		verify.requireExistingPath(symlink)
+		resolved_path = Path(os.readlink(symlink))
+		resolved_path = resolved_path.resolve(True)
+	finally:
+		os.chdir(workdir)
 	return resolved_path
 
 def isLuks(path):

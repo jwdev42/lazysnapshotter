@@ -25,6 +25,8 @@ from pathlib import Path
 #Exit Codes:
 EXIT_SUCCESS = 0 #normal program exit
 EXIT_FAILURE = 1 #generic error
+EXIT_COMMANDLINE = 2 #Error while processing the command line arguments
+EXIT_BUG = 23 #a bug was triggered
 
 config_backups = Path('/etc/lazysnapshotter/backups.conf')
 logfile = Path('/var/log/lazysnapshotter.log')
@@ -37,44 +39,20 @@ debug_mode = False
 default_snapshots = 2
 max_snapshots = 255
 
-def printException(e: Exception, trace = True):
+def printException(e: Exception, trace = False):
 	if trace or globalstuff.debug_mode:
 		traceback.print_exc(file = sys.stderr)
 	else:
-		print(e, file = sys.stderr)
+		print('{}: {}'.format(type(e).__name__, e), file = sys.stderr)
+
+
 
 class Bug(Exception):
+	def __init__(self, msg = None):
+		status = EXIT_BUG
+		if msg is not None:
+			super().__init__(msg)
+
+class ApplicationError(Exception):
+	"""Generic Exception raised by code in this app."""
 	pass
-
-class MountPointError(Exception):
-	def __init__(self, mountpoint):
-		super('"{}" is expected to be a mount point!'.format(str(mountpoint)))
-		
-class DirectoryExpectedError(Exception):
-	"""Raised if a function expects a directory, but the corresponding argument is something else."""
-	def __init__(self, path):
-		super('"{}" is expected to be a directory!'.format(str(path)))
-
-class DuplicateSnapshotError(Exception):
-	"""Raised if a Snapshot is being added to an already occupied Snapshot slot in the corresponding SnapshotDir."""
-	def __init__(self, Snapshot):
-		super('Snapshot "{}" was attempted to be added twice, that is forbidden!'.format(Snapshot))
-
-class SnapshotDirDoesNotMatchError(Exception):
-	"""Raised if a Snapshot from a differrent SnapshotDir is being added to another SnapshotDir."""
-
-class RelativePathNotSupportedError(Exception):
-	"""Raised if a relative file path was committed to a function that only supports absolute paths."""
-
-class PathDoesNotExistError(Exception):
-	"""Raised if a file path does not exist on the file system."""
-	def __init__(self, path):
-		super('Path "{}" does not exist on the file system!'.format(str(path)))
-
-class PathIsNoMountpointError(Exception):
-	"""Raised if a file path is not a mount point."""
-	def __init__(self, path):
-		super('Path "{}" is not a mount point!'.format(str(path)))
-
-class CryptDeviceStillMountedError(Exception):
-	"""Raised if a crypt device that is still mounted was attempted to be closed."""

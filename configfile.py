@@ -29,7 +29,7 @@ from uuid import UUID
 from pathlib import Path
 
 #constants:
-GLOBAL_LOGFILE = 'log'
+GLOBAL_LOGFILE = 'logfile'
 GLOBAL_MOUNTDIR = 'mount'
 GLOBAL_LOGLEVEL = 'loglevel'
 GLOBAL_SNAPSHOTS = 'snapshots'
@@ -38,6 +38,9 @@ ENTRY_SOURCE = 'source'
 ENTRY_SNAPSHOTDIR = 'snapshot_dir'
 ENTRY_TARGET = 'target'
 ENTRY_TARGETDIR = 'target_dir'
+#error strings
+ERR_UNKNOWN_KEY = 'The key "{}" is not defined!'
+ERR_INVALID_VALUE = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'
 
 logger = logging.getLogger(__name__)
 
@@ -68,29 +71,17 @@ class Configfile:
 			pdir = self._path.parent
 			if not pdir.exists():
 				pdir.mkdir(parents=True)
-		with open(self._path, 'w') as cf:
-			self._cp.write(cf)
-		
-	def isConfigEntryComplete(self, name: str):
-		if not self._cp.has_section(name):
-			return False
-		has = { ENTRY_SOURCE: False, \
-					ENTRY_SNAPSHOTDIR: False, \
-					ENTRY_TARGET: False, \
-					ENTRY_TARGETDIR: False }
-		section = self._cp[name]
-		for k, v in section.items():
-			if k in has:
-				has[k] = True
-		for k, v in has.items():
-			if not has[k]:
-				return False
-		return True
+		try:
+			with open(self._path, 'w') as cf:
+				self._cp.write(cf)
+		except PermissionError as e:
+			raise ConfigfileError("""You don't have permission to write to the configuration file, your changes have not been saved!
+Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 	
 	def _addCmdlineData(self, section, mapping, data):
 		for k, v in data.items():
 			if not k in mapping:
-				raise UnknownKeyError(k)
+				raise ConfigfileError(ERR_UNKNOWN_KEY.format(k))
 			m = mapping[k]
 			if m is None: #ignore command line args with nonexisting mapping
 				continue
@@ -103,22 +94,18 @@ class Configfile:
 				section[m[0]] = str(v)
 	
 	def _doConfigEntryFromCmdline(self, action, data):
-		if cmdline.ARG_NAME not in data:
-			raise NameNotDefinedError
 		name = data[cmdline.ARG_NAME]
 		if action == cmdline.ACTION_ADD:
 			if self._cp.has_section(name):
-				raise ConfigfileException('Entry "{}" already exists!'.format(name))
+				raise ConfigfileError('Entry "{}" already exists!'.format(name))
 			self._cp.add_section(name)
 		elif action == cmdline.ACTION_MODIFY:
 			if not self._cp.has_section(name):
-				raise ConfigfileException('Entry "{}" does not exist!'.format(name))
+				raise ConfigfileError('Entry "{}" does not exist!'.format(name))
 		else:
 			raise globalstuff.Bug
 		section = self._cp[name]
 		self._addCmdlineData(section, option_mapping_entry, data)
-		if not self.isConfigEntryComplete(name):
-			raise EntryIncompleteException(name)
 	
 	def addConfigEntryFromCmdline(self, data):
 		"""Takes data parsed from the cmdline module's "_do_add" function
@@ -155,14 +142,18 @@ class Configfile:
 		sectionName = 'GLOBALS'
 		defaults = self._cp.defaults()
 		for k, v in defaults.items():
-			if k == GLOBAL_LOGFILE and not logfile_from_cmdline:
+			if k == GLOBAL_LOGFILE:
+				if globalstuff.logfile_from_cmdline:
+					continue
 				p = Path(v)
 				verify.requireAbsolutePath(p)
 				globalstuff.logfile = Path(v)
-			elif k == GLOBAL_LOGLEVEL and not (globalstuff.debug_mode or globalstuff.loglevel_from_cmdline):
+			elif k == GLOBAL_LOGLEVEL:
+				if globalstuff.debug_mode or globalstuff.loglevel_from_cmdline:
+					continue
 				ll = util.str_to_loglevel(v)
 				if ll is None:
-					raise InvalidValueError(sectionName, k, v)
+					raise ConfigfileError(ERR_INVALID_VALUE.format(sectionName, k, v))
 			elif k == GLOBAL_MOUNTDIR:
 				p = Path(v)
 				verify.requireAbsolutePath(p)
@@ -172,29 +163,12 @@ class Configfile:
 				if verify.snapshot_count(ss):
 					globalstuff.default_snapshots = ss
 				else:
-					raise InvalidValueError(sectionName, k, v)
+					raise ConfigfileError(ERR_INVALID_VALUE.format(sectionName, k, v))
 			else:
-				raise UnknownKeyError(k)
+				raise ConfigfileError(ERR_UNKNOWN_KEY.format(k))
 
 	
-class ConfigfileException(Exception):
-	pass				
-
-class NameNotDefinedError(ConfigfileException):
-	pass
-
-class UnknownKeyError(ConfigfileException):
-	def __init__(self, key):
-		self.message = 'The key "' + key + '" is not defined!'
-
-class InvalidValueError(ConfigfileException):
-	def __init__(self, section: str, key: str, value: str):
-		self.message = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'.format(section, value, key)
-
-class MissingKeyError(ConfigfileException):
-	def __init__(self, name, key):
-		self.message = 'The key "' + key + '" is missing in backup entry "' + name + '"!'
-
-class EntryIncompleteException(ConfigfileException):
-	def __init__(self, name):
-		self.message = 'The backup entry "' + name + '" is incomplete!'
+class ConfigfileError(Exception):
+	def __init__(self, msg = None):
+		if msg is not None:
+			super().__init__(msg)

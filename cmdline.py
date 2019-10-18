@@ -46,8 +46,12 @@ ARG_NOUMOUNT = '--nounmount'
 ARG_LOGFILE = '--logfile'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
-
+REQUIRED_ENTRY_OPTIONS = ( ARG_NAME, ARG_SOURCE, ARG_TARGET, ARG_SNAPSHOTDIR )
 ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
+ERR_INVALID_COMMAND = '"{}" is not a valid command!'
+ERR_INVALID_ARGUMENT = '"{}" is not a valid argument!'
+ERR_DUPLICATE_ARGUMENT = '"{}" can only be specified once!'
+ERR_MISSING_ARGUMENT = 'Action "{}" needs an Argument!'
 
 args = deque(sys.argv)
 args.popleft() #remove program name from args
@@ -68,6 +72,17 @@ def displayValidCommands():
 	print('\t{}'.format(ACTION_LIST))
 	print('\t{}'.format(ACTION_RUN))
 
+def displayEntryExample():
+	print('Minimal backup entry example:')
+	print('\t{} example {} /my/subvolume/I/want/to/save {} /my/snapshots {} /dev/sdf2'\
+	.format(ARG_NAME, ARG_SOURCE, ARG_SNAPSHOTDIR, ARG_TARGET))
+
+def isEntryComplete(data):
+	for e in REQUIRED_ENTRY_OPTIONS:
+		if not e in data:
+			return False
+	return True
+
 def preAction():
 	res = ProcessedCMDline()
 	_do_pre(res)
@@ -87,9 +102,16 @@ def _action():
 		res.action = args[0]
 		args.popleft()
 		if res.action == ACTION_ADD:
-			return _do_add_modify(res)
+			res = _do_add_modify(res)
+			if not isEntryComplete(res.data):
+				displayEntryExample()
+				raise CommandLineError('You entered an incomplete backup entry!')
+			return res
 		elif res.action == ACTION_MODIFY:
-			return _do_add_modify(res)
+			res = _do_add_modify(res)
+			if not ARG_NAME in res.data:
+				raise CommandLineError('You need to specify the name of the entry to be modified!')
+			return res
 		elif res.action == ACTION_REMOVE:
 			return _do_remove(res)
 		elif res.action == ACTION_LIST:
@@ -99,21 +121,23 @@ def _action():
 		elif res.action == ACTION_GLOBAL:
 			return _do_global(res)
 		else:
-			raise InvalidCommandError(res.action)
+			displayValidCommands()
+			raise CommandLineError(ERR_INVALID_COMMAND.format(res.action))
 	else:
 		displayValidCommands()
+		raise CommandLineError('No command given!')
 	return None
 
 def _arg_helper(data, arg, params):
 	if arg in data:
-		raise DuplicateArgumentError(arg)
+		raise CommandLineError(ERR_DUPLICATE_ARGUMENT.format(arg))
 	if len(args) < params:
 		msg = None
 		if params == 1:
 			msg = 'Argument "{}" needs an option!'.format(arg)
 		else:
 			msg = 'Argument "{}" needs {} options!'.format(arg, params)
-		raise MissingArgumentOptionError(msg)
+		raise CommandLineError(msg)
 
 def _arg_optionless(data, arg):
 	if len(args) == 0:
@@ -140,7 +164,7 @@ def _parse_snapshots(arg, data):
 		data[arg] = ss
 		args.popleft()
 	else:
-		raise InvalidArgumentOptionError('"' + arg + '" must be between 1 and ' + str(globalstuff.max_snapshots))
+		raise CommandLineError('Only between 1 and {} snapshots are supported!'.format(globalstuff.max_snapshots))
 
 def _process_run(args, data):
 	umount = False
@@ -159,7 +183,7 @@ def _process_run(args, data):
 		_process_run(args, data)
 	else:
 		if umount == True:
-			raise InvalidArgumentOptionError('Option "' + ARG_NOUMOUNT + '" needs an Argument!')
+			raise CommandLineError('Option "{}" needs an Argument!'.format(ARG_NOUMOUNT))
 	return
 
 def _process_run_backupid(args):
@@ -170,7 +194,7 @@ def _process_run_backupid(args):
 		args.popleft()
 		return bid
 	else:
-		raise InvalidArgumentOptionError(ERR_BACKUP_ID.format(args[0]))
+		raise CommandLineError(ERR_BACKUP_ID.format(args[0]))
 
 def _pre_path_helper(arg, data, path):
 	_arg_helper(data, arg, 1)
@@ -199,17 +223,17 @@ def _do_list(res):
 def _do_run(res):
 	_process_run(args, res.data)
 	if len(res.data) == 0:
-		raise MissingArgumentOptionError('Action "'+ ACTION_RUN + '" needs an Argument!')
+		raise CommandLineError(ERR_MISSING_ARGUMENT.format(ACTION_RUN))
 	return res
 
 def _do_remove(res):
 	if len(args) == 0:
-		raise MissingArgumentOptionError('Action "'+ ACTION_REMOVE + '" needs an Argument!')
+		raise CommandLineError(ERR_MISSING_ARGUMENT.format(ACTION_REMOVE))
 	while len(args) > 0:
 		if verify.backup_id(args[0]):
 			res.data.append(args[0])
 		else:
-			raise InvalidArgumentOptionError(ERR_BACKUP_ID.format(args[0]))
+			raise CommandLineError(ERR_BACKUP_ID.format(args[0]))
 		args.popleft()
 	return res
 
@@ -223,7 +247,7 @@ def _do_add_modify(res):
 				res.data[arg] = args[0]
 				args.popleft()
 			else:
-				raise InvalidArgumentOptionError(ERR_BACKUP_ID.format(args[0]))
+				raise CommandLineError(ERR_BACKUP_ID.format(args[0]))
 		elif arg == ARG_SNAPSHOTS:
 			if _arg_optionless(res.data, arg):
 				pass
@@ -248,7 +272,7 @@ def _do_add_modify(res):
 		elif arg == ARG_SOURCE or arg == ARG_SNAPSHOTDIR:
 			_parse_arg_with_absolute_path(arg, res.data)
 		else:
-			raise InvalidArgumentError(arg)
+			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
 	return res
 
 def _do_global(res):
@@ -266,7 +290,7 @@ def _do_global(res):
 			else:
 				level = args[0]
 				if not level in verify.LOGLEVELS:
-					raise InvalidArgumentOptionError('"{}" is not a valid log level!'.format(level))
+					raise CommandLineError('"{}" is not a valid log level!'.format(level))
 				_arg_helper(res.data, arg, 1)
 				res.data[arg] = level
 				args.popleft()
@@ -276,27 +300,13 @@ def _do_global(res):
 			else:
 				_parse_snapshots(arg, res.data)
 		else:
-			raise InvalidArgumentError(arg)
+			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
 		
 	return res
 
 class CommandLineError(Exception):
-	pass
-
-class InvalidCommandError(CommandLineError):
-	def __init__(self, argument):
-		super().__init__('"{}" is not a valid command!'.format(argument))
-
-class InvalidArgumentError(CommandLineError):
-	def __init__(self, argument):
-		super().__init__('"{}" is not a valid argument!'.format(argument))
-
-class DuplicateArgumentError(CommandLineError):
-	def __init__(self, argument):
-		super().__init__('"{}" can only be specified once!'.format(argument))
-
-class InvalidArgumentOptionError(CommandLineError):
-	pass
-
-class MissingArgumentOptionError(CommandLineError):
+	def __init__(self, msg = None):
+		globalstuff.status = globalstuff.EXIT_COMMANDLINE
+		if msg is not None:
+			super().__init__(msg)
 	pass
