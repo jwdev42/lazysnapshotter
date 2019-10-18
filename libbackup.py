@@ -162,12 +162,19 @@ class Backup:
 	def closeLuks(self):
 		dev = self.getEntry().getTargetDevice()
 		if self.isMounted():
-			raise globalstuff.ApplicationError('Error closing LUKS container: "{}". It is still mounted!'.format(str(dev)))
+			logger.warning('Cannot close LUKS device "%s" as it is still mounted!', str(dev))
+			return False
 		verify.requireExistingPath(dev)
 		command = [ shutil.which('cryptsetup'), 'close', str(dev) ]
 		res = subprocess.run(command)
-		res.check_returncode()
+		try:
+			res.check_returncode()
+		except subprocess.CalledProcessError as e:
+			globalstuff.printException(e)
+			logger.error('Failed to close LUKS container "%s"!', str(self._mountPoint))
+			return False
 		logger.debug('LUKS Container at "%s" was closed.', str(dev))
+		return True
 	
 	def mount(self, path: Path = None):
 		mountpath = None
@@ -207,14 +214,21 @@ class Backup:
 	def unmount(self):
 		verify.requireExistingPath(self._mountPoint)
 		if not self.isMounted():
-			raise globalstuff.ApplicationError('"{}" is expected to be mounted!'.format(str(self._mountPoint)))
+			logger.warning('Cannot unmount "%s" as it is not mounted!', str(self._mountPoint))
+			return False
 		command = [ shutil.which('umount'), str(self._mountPoint) ]
 		res = subprocess.run(command)
-		res.check_returncode()
+		try:
+			res.check_returncode()
+		except subprocess.CalledProcessError as e:
+			globalstuff.printException(e)
+			logger.error('Failed to unmount "%s"!', str(self._mountPoint))
+			return False
 		logger.debug('"%s" was unmounted.', str(self._mountPoint))
 		#remove directory if it was created by mount():
 		if self.wasMountPointCreated():
 			os.rmdir(self._mountPoint)
+		return True
 	
 	def run(self):
 		e = self.getEntry()
