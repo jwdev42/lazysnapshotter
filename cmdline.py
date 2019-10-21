@@ -60,7 +60,7 @@ class ProcessedCMDline():
 	"""Container class that stores the processed command line."""
 	def __init__(self):
 		self.action = None
-		self.data = dict()
+		self.data = None
 	
 	
 def displayValidCommands():
@@ -205,6 +205,7 @@ def _pre_path_helper(arg, data, path):
 
 def _do_pre(res):
 	"""Process global command line arguments before an action is applied"""
+	res.data = dict()
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft()
@@ -221,12 +222,14 @@ def _do_list(res):
 	return res
 
 def _do_run(res):
+	res.data = list()
 	_process_run(args, res.data)
 	if len(res.data) == 0:
 		raise CommandLineError(ERR_MISSING_ARGUMENT.format(ACTION_RUN))
 	return res
 
 def _do_remove(res):
+	res.data = list()
 	if len(args) == 0:
 		raise CommandLineError(ERR_MISSING_ARGUMENT.format(ACTION_REMOVE))
 	while len(args) > 0:
@@ -238,6 +241,7 @@ def _do_remove(res):
 	return res
 
 def _do_add_modify(res):
+	res.data = dict()
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft() #args[0] now points to first parameter
@@ -276,6 +280,7 @@ def _do_add_modify(res):
 	return res
 
 def _do_global(res):
+	res.data = dict()
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft() #args[0] now points to first parameter

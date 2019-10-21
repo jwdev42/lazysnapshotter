@@ -31,6 +31,8 @@ import util
 from uuid import UUID
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 def globalcmdline():
 	"""Parse the global (pre-action) part of the command line options, then load its data into the program."""
 	pcmd = cmdline.preAction()
@@ -55,7 +57,6 @@ def globalcmdline():
 def setupLogger():
 	f = '%(asctime)s: %(levelname)s - %(message)s'
 	logging.basicConfig(filename = globalstuff.logfile, level = globalstuff.loglevel, format = f, style = '%')
-	return logging.getLogger(__name__)
 	
 def loadConfig():
 	"""Reads the configuration file and loads its global options."""
@@ -65,7 +66,6 @@ def loadConfig():
 	return cf
 
 def createMountDir():
-	logger = logging.getLogger(__name__)
 	if not os.path.exists(globalstuff.mountdir):
 		os.mkdir(globalstuff.mountdir)
 		logger.debug('Created mount directory "{}".'.format(str(globalstuff.mountdir)))
@@ -75,18 +75,25 @@ def createMountDir():
 		logger.debug('Mount directory "{}" already exists.'.format(str(globalstuff.mountdir)))
 
 def cleanMountDir():
-	logger = logging.getLogger(__name__)
 	if os.path.isdir(globalstuff.mountdir):
 		if len(os.listdir(globalstuff.mountdir)) == 0:
 			os.rmdir(globalstuff.mountdir)
 			logger.debug('Removed mount directory "{}".'.format(str(globalstuff.mountdir)))
 
+def _b_error(e: Exception, name: str, reason: str = None, advice:str = None):
+	"""Called by runBackup on specific errors, creates a human-readable error description."""
+	print('ERROR: Backup "{}" could not be run!'.format(name), file = sys.stderr)
+	if reason is not None:
+		print('Reason: {}\n'.format(reason), file = sys.stderr)
+	if advice is not None:
+		print('Advice: {}\n'.format(advice), file = sys.stderr)
+	raise e
+	
 def runBackup(cf, backup_params):
-	logger = logging.getLogger(__name__)
+	
 	name = backup_params[0]
 	unmount = not backup_params[1] #controls if the backup volume will be unmounted after the backup
 	unmap = False #controls if the luks volume will be unmapped after the backup
-	snapshots = globalstuff.default_snapshots
 	cfe = cf.getConfigEntry(name)
 	if cfe is None:
 		print('Backup "{}" does not exist!'.format(name))
@@ -94,25 +101,62 @@ def runBackup(cf, backup_params):
 	be = libbackup.BackupEntry(name)
 	backup = libbackup.Backup(be)
 	
-	be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
-	be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
-	if configfile.ENTRY_TARGETDIR in cfe:
-		be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
-	
 	if configfile.ENTRY_SNAPSHOTS in cfe:
-		snapshots = int(cfe[configfile.ENTRY_SNAPSHOTS])
+		try:
+			be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
+		except verify.VerificationError as e:
+		_b_error(e, name, reason = 'The backup\'s custom snapshot amount is invalid.', \
+		advice = 'Please set the backup entry\'s snapshot value between 1 and {}.'.format(globalstuff.max_snapshots))
+	else:
+		be.setSnapshots(globalstuff.default_snapshots)
+	
+	try:
+		be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
+	except verify.VerificationError as e:
+		_b_error(e, name, reason = 'The backup source could not be validated.', \
+		advice = 'Please make sure that the backup source exists and is a valid btrfs subvolume.')
+	try:
+		be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
+	except verify.VerificationError as e:
+		_b_error(e, name, reason = 'The snapshot directory could not be validated.', \
+		advice = 'Please make sure that the snapshot directory exists.')
+	if configfile.ENTRY_TARGETDIR in cfe:
+		try:
+			be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
+		except verify.VerificationError as e:
+			_b_error(e, name, reason = 'The backup directory on the backup volume could not be validated.', \
+			advice = 'Please make sure that the backup directory is provided as a relative path starting from the root directory of the backup volume.')
 	
 	#u_dev: unknown dev, could be a luks device or a partition, as uuid or absolute path
 	u_dev = cfe[configfile.ENTRY_TARGET]
 	
 	if verify.uuid(u_dev):
-		u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
+		try:
+			u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
+		except verify.VerificationError as e:
+			_b_error(e, name, reason = 'No block device found for the backup device\'s UUID.', \
+			advice = 'Please make sure that the provided UUID is valid and the device is plugged in.')
 	
 	logger.debug('Using backup device "{}".'.format(u_dev))
+	backup_device = Path(u_dev)
+	try:
+		verify.requireAbsolutePath(backup_device)
+		verify.requireExistingPath(backup_device)
+	except verify.VerificationError as e:
+		_b_error(e, name, reason = 'Verification of the backup device failed.', \
+		advice = """Please make sure that the backup device exists.
+Be advised that the backup device must be provided as an absolute file path or a valid UUID.""")
 	
-	if mounts.isLuks(u_dev):
+	isluks = None
+	try:
+		isluks = mounts.isLuks(backup_device)
+	except CalledProcessError as e:
+		_b_error(e, name, reason = 'Cryptsetup exited with an error when checking if the backup device was a luks container.', \
+		advice = 'Please make sure you have sufficient rights to access the backup device.')
+	
+	if isluks:
 		logger.debug('Backup device is a LUKS container.')
-		be.setCryptDevice(Path(u_dev))
+		be.setCryptDevice(backup_device)
 		dev = mounts.getLuksMapping(be.getCryptDevice())
 		if dev is not None:
 			logger.debug('LUKS container is already open.')
@@ -123,7 +167,7 @@ def runBackup(cf, backup_params):
 			unmap = True
 	else:
 		logger.debug('Backup device is a Partition.')
-		be.setTargetDevice(Path(u_dev))
+		be.setTargetDevice(backup_device)
 	
 	mp = mounts.getMountpoint(be.getTargetDevice())
 	if mp is None:
@@ -131,8 +175,11 @@ def runBackup(cf, backup_params):
 		backup.mount()
 	else:
 		logger.debug('Partition is already mounted.')
-		ss_path = Path(mp) / be.getBackupDir()
-		be.setTargetSnapshotDir(ss_path)
+		bd = be.getBackupDir()
+		if bd is not None:
+			be.setTargetSnapshotDir(Path(mp) / bd)
+		else:
+			be.setTargetSnapshotDir(Path(mp))
 		unmount = False
 		
 	backup.run()
@@ -145,9 +192,9 @@ def runBackup(cf, backup_params):
 def main():
 	try:
 		globalcmdline()
-		logger = setupLogger()
 		pcmd = cmdline.action()
-		
+		if pcmd is None:
+			sys.exit(globalstuff.status)
 		cf = loadConfig()
 		if pcmd.action == cmdline.ACTION_ADD:
 			cf.addConfigEntryFromCmdline(pcmd.data)

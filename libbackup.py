@@ -23,6 +23,7 @@ import uuid
 import os
 import os.path
 import copy
+import warnings
 from pathlib import Path
 from time import sleep
 
@@ -42,6 +43,7 @@ class BackupEntry:
 		self._targetDevice = None #the device to backup to
 		self._backupDir = None #relative path on the backup device to its snapshots
 		self._targetSnapshotDir = None #SnapshotDir object created from the full joint path of targetDevice and backupDir
+		self._snapshots = None #Define a custom amount of snapshots to keep
 	#setters:
 	def setSourceSubvolume(self, path: Path):
 		"""Sets the btrfs subvolume to backup"""
@@ -53,9 +55,12 @@ class BackupEntry:
 		"""Sets the directory containing the snapshots on the source medium."""
 		verify.requireAbsolutePath(ss_dir)
 		verify.requireExistingPath(ss_dir)
-		self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir)
+		if self._snapshots is not None:
+			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir, keep = self._snapshots)
+		else:
+			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir)
 	
-	def setCryptDevice(self, path):
+	def setCryptDevice(self, path: Path):
 		"""Sets the passed block device as the encrypted target container on the backup medium."""
 		verify.requireAbsolutePath(path)
 		verify.requireExistingPath(path)
@@ -66,7 +71,7 @@ class BackupEntry:
 		dev = mounts.getBlockDeviceFromUUID(crypt_uuid)
 		self.setCryptDevice(dev)
 	
-	def setTargetDevice(self, path):
+	def setTargetDevice(self, path: Path):
 		"""Sets the passed block device as the unencrypted target partition on the backup medium."""
 		verify.requireAbsolutePath(path)
 		verify.requireExistingPath(path)
@@ -77,7 +82,7 @@ class BackupEntry:
 		dev = mounts.getBlockDeviceFromUUID(target_uuid)
 		self.setTargetDevice(dev)
 		
-	def setBackupDir(self, path):
+	def setBackupDir(self, path: Path):
 		"""The passed argument must be the relative path to the snapshots on the backup medium."""
 		verify.requireRelativePath(path)
 		self._backupDir = path
@@ -85,8 +90,17 @@ class BackupEntry:
 	def setTargetSnapshotDir(self, tss_dir: Path):
 		verify.requireAbsolutePath(tss_dir)
 		verify.requireExistingPath(tss_dir)
+	if self._snapshots is not None:
+		self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir, self._snapshots)
+	else:
 		self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir)
 	
+	def setSnapshots(self, snapshots: int):
+		if self._sourceSnapshotDir is not None or self._targetSnapshotDir is not None:
+			warnings.warn('setSnapshots called after setSourceSnapshotDir or setTargetSnapshotDir will have no effect!')
+		verify.requireRightAmountOfSnapshots(snapshots)
+		self._snapshots = snapshots
+		
 	#getters:
 	def getName(self):
 		return copy.deepcopy(self._name)
@@ -108,7 +122,9 @@ class BackupEntry:
 		
 	def getTargetSnapshotDir(self):
 		return self._targetSnapshotDir
-		
+	
+	def getSnapshots(self):
+		return copy.deepcopy(self._snapshots)
 
 class Backup:
 	def __init__(self, entry: 'libbackup.BackupEntry'):
@@ -180,11 +196,8 @@ class Backup:
 		mountpath = None
 		if path is None:
 			appendix = Path(self.getEntry().getName())
-			try:
-				verify.requireAbsolutePath(globalstuff.mountdir)
-				verify.requireExistingPath(globalstuff.mountdir)
-			except VerificationError as e:
-				raise globalstuff.ApplicationError('Error mounting directory "{}". It is either nonexistent or a relative Path.'.format(globalstuff.mountdir))
+			verify.requireAbsolutePath(globalstuff.mountdir)
+			verify.requireExistingPath(globalstuff.mountdir)
 			mountpath = globalstuff.mountdir / appendix
 		else:
 			mountpath = path
@@ -298,7 +311,7 @@ class Backup:
 		
 		#delete old snapshots:
 		ssd_source.purgeSnapshots()
-		ssd_backup.rescan()
+		ssd_backup.scan()
 		ssd_backup.purgeSnapshots()
 
 class BackupError(Exception):

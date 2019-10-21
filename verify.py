@@ -47,23 +47,38 @@ def snapshot_count(c: int):
 		raise TypeError('{}: arg 1 must be of int'.format(snapshot_count.__name__))
 	return 0 < c <= globalstuff.max_snapshots
 
-def requireAbsolutePath(path):
+def requireAbsolutePath(path, errmsg = None):
 	if not isinstance(path, Path):
 		raise TypeError('arg 1 must be of pathlib.Path')
 	if not path.is_absolute():
-		raise VerificationError('"{}" is not an absolute Path!'.format(str(path)))
+		if errmsg is not None:
+			raise VerificationError(errmsg)
+		else:
+			raise VerificationError('"{}" is not an absolute Path!'.format(str(path)))
 		
-def requireRelativePath(path):
+def requireRelativePath(path, errmsg = None):
 	if not isinstance(path, Path):
 		raise TypeError('arg 1 must be of pathlib.Path')
 	if path.is_absolute():
-		raise VerificationError('"{}" is not a relative path!'.format(str(path)))
+		if errmsg is not None:
+			raise VerificationError(errmsg)
+		else:
+			raise VerificationError('"{}" is not a relative path!'.format(str(path)))
 
-def requireExistingPath(path):
+def requireExistingPath(path, errmsg = None):
 	if not isinstance(path, Path):
 		raise TypeError('arg 1 must be of pathlib.Path')
 	if not path.exists():
-		raise VerificationError('Path "{}" does not exist in the file system!'.format(str(path)))
+		if errmsg is not None:
+			raise VerificationError(errmsg)
+		else:
+			raise VerificationError('Path "{}" does not exist in the file system!'.format(str(path)))
+
+def requireRightAmountOfSnapshots(snapshots: int):
+	if not isinstance(snapshots, int):
+		raise TypeError('arg 1 must be of int')
+	if not snapshot_count(snapshots):
+		raise VerificationError('{} is an invalid amount of snapshots!'.format(snapshots))
 
 class VerificationError(Exception):
 	"""Thrown if a require* function cannot verify its condition."""
