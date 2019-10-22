@@ -90,10 +90,10 @@ class BackupEntry:
 	def setTargetSnapshotDir(self, tss_dir: Path):
 		verify.requireAbsolutePath(tss_dir)
 		verify.requireExistingPath(tss_dir)
-	if self._snapshots is not None:
-		self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir, self._snapshots)
-	else:
-		self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir)
+		if self._snapshots is not None:
+			self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir, self._snapshots)
+		else:
+			self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir)
 	
 	def setSnapshots(self, snapshots: int):
 		if self._sourceSnapshotDir is not None or self._targetSnapshotDir is not None:

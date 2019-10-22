@@ -105,8 +105,8 @@ def runBackup(cf, backup_params):
 		try:
 			be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
 		except verify.VerificationError as e:
-		_b_error(e, name, reason = 'The backup\'s custom snapshot amount is invalid.', \
-		advice = 'Please set the backup entry\'s snapshot value between 1 and {}.'.format(globalstuff.max_snapshots))
+			_b_error(e, name, reason = 'The backup\'s custom snapshot amount is invalid.', \
+			advice = 'Please set the backup entry\'s snapshot value between 1 and {}.'.format(globalstuff.max_snapshots))
 	else:
 		be.setSnapshots(globalstuff.default_snapshots)
 	
