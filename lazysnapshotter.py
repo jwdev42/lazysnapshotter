@@ -30,6 +30,7 @@ import util
 
 from uuid import UUID
 from pathlib import Path
+from subprocess import CalledProcessError
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +83,12 @@ def cleanMountDir():
 
 def _b_error(e: Exception, name: str, reason: str = None, advice:str = None):
 	"""Called by runBackup on specific errors, creates a human-readable error description."""
-	print('ERROR: Backup "{}" could not be run!'.format(name), file = sys.stderr)
+	print('ERROR:\t\tBackup "{}" could not be run!'.format(name), file = sys.stderr)
 	if reason is not None:
-		print('Reason: {}\n'.format(reason), file = sys.stderr)
+		print('Reason:\t\t{}'.format(reason), file = sys.stderr)
 	if advice is not None:
-		print('Advice: {}\n'.format(advice), file = sys.stderr)
+		print('Advice:\t\t{}'.format(advice), file = sys.stderr)
+	print('Exception:', end = '\t', file = sys.stderr)
 	raise e
 	
 def runBackup(cf, backup_params):
@@ -104,7 +106,7 @@ def runBackup(cf, backup_params):
 	if configfile.ENTRY_SNAPSHOTS in cfe:
 		try:
 			be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
-		except verify.VerificationError as e:
+		except (verify.VerificationError, ValueError) as e:
 			_b_error(e, name, reason = 'The backup\'s custom snapshot amount is invalid.', \
 			advice = 'Please set the backup entry\'s snapshot value between 1 and {}.'.format(globalstuff.max_snapshots))
 	else:
@@ -153,41 +155,42 @@ Be advised that the backup device must be provided as an absolute file path or a
 	except CalledProcessError as e:
 		_b_error(e, name, reason = 'Cryptsetup exited with an error when checking if the backup device was a luks container.', \
 		advice = 'Please make sure you have sufficient rights to access the backup device.')
-	
-	if isluks:
-		logger.debug('Backup device is a LUKS container.')
-		be.setCryptDevice(backup_device)
-		dev = mounts.getLuksMapping(be.getCryptDevice())
-		if dev is not None:
-			logger.debug('LUKS container is already open.')
-			be.setTargetDevice(Path(dev))
+	try:
+		mountpoint = None
+		be.setTargetDevice(Path(backup_device))
+		if isluks:
+			logger.debug('Backup device is a LUKS container.')
+			mapping = mounts.getLuksMapping(backup_device)
+			if mapping is not None:
+				logger.debug('LUKS container is already open.')
+				backup.setLuksMapping(Path(mapping))
+			else:
+				logger.debug('Opening LUKS container.')
+				unmap = True
+				backup.openLuks()
+			mountpoint = mounts.getMountpoint(backup.getLuksMapping())
 		else:
-			logger.debug('Opening LUKS container.')
-			backup.openLuks()
-			unmap = True
-	else:
-		logger.debug('Backup device is a Partition.')
-		be.setTargetDevice(backup_device)
-	
-	mp = mounts.getMountpoint(be.getTargetDevice())
-	if mp is None:
-		logger.debug('Mounting Partition.')
-		backup.mount()
-	else:
-		logger.debug('Partition is already mounted.')
+			logger.debug('Backup device is a Partition.')
+			mountpoint = mounts.getMountpoint(be.getTargetDevice())
+		if mountpoint is None:
+			logger.debug('Mounting Partition.')
+			backup.mount(globalstuff.mountdir)
+		else:
+			logger.debug('Partition is already mounted.')
+			backup.setMountPoint(mountpoint)
+			unmount = False
 		bd = be.getBackupDir()
 		if bd is not None:
-			be.setTargetSnapshotDir(Path(mp) / bd)
+			be.setTargetSnapshotDir(backup.getMountPoint() / bd)
 		else:
-			be.setTargetSnapshotDir(Path(mp))
-		unmount = False
-		
-	backup.run()
-	
-	if unmount:
-		backup.unmount()
-	if unmap:
-		backup.closeLuks()
+			be.setTargetSnapshotDir(backup.getMountPoint())
+			
+		backup.run()
+	finally:
+		if unmount:
+			backup.unmount()
+		if unmap:
+			backup.closeLuks()
 	
 def main():
 	try:
@@ -226,4 +229,5 @@ def main():
 	finally:
 		sys.exit(globalstuff.status)
 
-main()
+if __name__== "__main__":
+	main()

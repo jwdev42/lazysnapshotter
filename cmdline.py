@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #lazysnapshotter - a backup tool using btrfs
 #Copyright (C) 2019  Joerg Walter

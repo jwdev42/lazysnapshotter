@@ -30,14 +30,14 @@ from pathlib import Path
 
 #constants:
 GLOBAL_LOGFILE = 'logfile'
-GLOBAL_MOUNTDIR = 'mount'
+GLOBAL_MOUNTDIR = 'mountdir'
 GLOBAL_LOGLEVEL = 'loglevel'
 GLOBAL_SNAPSHOTS = 'snapshots'
 ENTRY_SNAPSHOTS = 'snapshots'
 ENTRY_SOURCE = 'source'
-ENTRY_SNAPSHOTDIR = 'snapshot_dir'
-ENTRY_TARGET = 'target'
-ENTRY_TARGETDIR = 'target_dir'
+ENTRY_SNAPSHOTDIR = 'snapshot-dir'
+ENTRY_TARGET = 'backup-device'
+ENTRY_TARGETDIR = 'backup-dir'
 #error strings
 ERR_UNKNOWN_KEY = 'The key "{}" is not defined!'
 ERR_INVALID_VALUE = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'
@@ -60,7 +60,8 @@ class Configfile:
 	def __init__(self, path: Path):
 		verify.requireAbsolutePath(path)
 		self._path = path
-		self._cp = configparser.ConfigParser(delimiters = '=', comment_prefixes = '#')
+		self._cp = configparser.ConfigParser(delimiters = '=', comment_prefixes = '#', interpolation = None)
+		self._cp.optionxform = str
 		
 	def read(self):
 		if self._path.exists():

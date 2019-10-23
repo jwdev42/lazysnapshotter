@@ -39,7 +39,6 @@ class BackupEntry:
 		self._name = name
 		self._sourceSubvolume = None #the subvolume to backup
 		self._sourceSnapshotDir = None
-		self._cryptDevice = None
 		self._targetDevice = None #the device to backup to
 		self._backupDir = None #relative path on the backup device to its snapshots
 		self._targetSnapshotDir = None #SnapshotDir object created from the full joint path of targetDevice and backupDir
@@ -59,17 +58,6 @@ class BackupEntry:
 			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir, keep = self._snapshots)
 		else:
 			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir)
-	
-	def setCryptDevice(self, path: Path):
-		"""Sets the passed block device as the encrypted target container on the backup medium."""
-		verify.requireAbsolutePath(path)
-		verify.requireExistingPath(path)
-		self._cryptDevice = path
-		
-	def setCryptUUID(self, crypt_uuid):
-		"""like setCryptDevice, but takes the device's UUID."""
-		dev = mounts.getBlockDeviceFromUUID(crypt_uuid)
-		self.setCryptDevice(dev)
 	
 	def setTargetDevice(self, path: Path):
 		"""Sets the passed block device as the unencrypted target partition on the backup medium."""
@@ -111,9 +99,6 @@ class BackupEntry:
 	def getSourceSnapshotDir(self):
 		return self._sourceSnapshotDir
 	
-	def getCryptDevice(self):
-		return copy.deepcopy(self._cryptDevice)
-	
 	def getTargetDevice(self):
 		return copy.deepcopy(self._targetDevice)
 		
@@ -133,31 +118,42 @@ class Backup:
 		self._entry = entry
 		self._mountPoint = None
 		self._mountPointCreated = False
+		self._luksmapping = None
 		
-	def _setMountPoint(self, path):
+	def setMountPoint(self, path):
 		verify.requireAbsolutePath(path)
 		if not path.is_mount():
 			raise globalstuff.ApplicationError('Path "{}" is expected to be a mount point!'.format(path))
 		self._mountPoint = path
 	
+	def setLuksMapping(self, path):
+		verify.requireAbsolutePath(path)
+		self._luksmapping = path
+	
 	def getEntry(self):
 		return self._entry
 	
-	def isLuks(self):
-		if isinstance(self.getEntry().getCryptDevice(), Path):
-			return True
-		return False
+	def getMountPoint(self):
+		return copy.deepcopy(self._mountPoint)
+		
+	def getLuksMapping(self):
+		return copy.deepcopy(self._luksmapping)
 	
 	def isMounted(self):
-		dev = self.getEntry().getTargetDevice()
-		if mounts.deviceMountPoints(str(dev)) > 0:
+		"""Returns True if the mount()-Method ran successfully and set a mount point. Returns false otherwise."""
+		if self._mountPoint is None:
+			return False
+		else:
 			return True
-		return False
+			
+	def wasMountPointCreated(self):
+		"""Returns True if the mount()-Method created the directory of the mount point, false otherwise."""
+		return copy.deepcopy(self._mountPointCreated)
 			
 	def openLuks(self, keyfile=None):
 		"""Opens the LUKS container specified in the BackupEntry, sets the BackupEntry's
 		Target Device as a side effect."""
-		dev = self._entry.getCryptDevice()
+		dev = self._entry.getTargetDevice()
 		verify.requireAbsolutePath(dev)
 		if keyfile is not None and not isinstance(keyfile, Path):
 			raise TypeError('arg 1 must be of pathlib.Path')
@@ -171,17 +167,17 @@ class Backup:
 		p = Path('/dev/mapper/') / Path(name)
 		verify.requireExistingPath(p)
 		logger.debug('LUKS Container "%s" is open at "%s".', str(dev), str(p))
-		e = self.getEntry()
-		#side effect: set the target device for mounting
-		e.setTargetDevice(p)
+		self._luksmapping = p
 	
 	def closeLuks(self):
-		dev = self.getEntry().getTargetDevice()
-		if self.isMounted():
-			logger.warning('Cannot close LUKS device "%s" as it is still mounted!', str(dev))
+		if self._luksmapping is None:
+			logger.warning('Cannot close LUKS device, no device found!')
 			return False
-		verify.requireExistingPath(dev)
-		command = [ shutil.which('cryptsetup'), 'close', str(dev) ]
+		if self.isMounted():
+			logger.warning('Cannot close LUKS device "%s" as it is still mounted!', str(self._luksmapping))
+			return False
+		verify.requireExistingPath(self._luksmapping)
+		command = [ shutil.which('cryptsetup'), 'close', str(self._luksmapping) ]
 		res = subprocess.run(command)
 		try:
 			res.check_returncode()
@@ -189,40 +185,29 @@ class Backup:
 			globalstuff.printException(e)
 			logger.error('Failed to close LUKS container "%s"!', str(self._mountPoint))
 			return False
-		logger.debug('LUKS Container at "%s" was closed.', str(dev))
+		logger.debug('LUKS Container at "%s" was closed.', str(self._luksmapping))
+		self._luksmapping = None
 		return True
 	
-	def mount(self, path: Path = None):
-		mountpath = None
-		if path is None:
-			appendix = Path(self.getEntry().getName())
-			verify.requireAbsolutePath(globalstuff.mountdir)
-			verify.requireExistingPath(globalstuff.mountdir)
-			mountpath = globalstuff.mountdir / appendix
-		else:
-			mountpath = path
+	def mount(self, path: Path):
+		appendix = Path(self.getEntry().getName())
+		verify.requireAbsolutePath(path)
+		verify.requireExistingPath(path)
+		mountpath = path / appendix
 		if not mountpath.exists():
 			os.mkdir(mountpath)
 			self._mountPointCreated = True
-		dev = self._entry.getTargetDevice()
+		dev = None
+		if self._luksmapping is not None:
+			dev = self._luksmapping
+		else:
+			dev = self._entry.getTargetDevice()
 		verify.requireExistingPath(dev)
 		command = [ shutil.which('mount'), str(dev), str(mountpath) ]
 		res = subprocess.run(command)
 		res.check_returncode()
 		self._mountPoint = mountpath
 		logger.debug('Device "%s" mounted at "%s".', str(dev), str(self._mountPoint))
-		#set the targetSnapshotDir for the contained BackupEntry as a side effect
-		e = self.getEntry()
-		bd = e.getBackupDir()
-		if bd is None:
-			e.setTargetSnapshotDir(self._mountPoint)
-		else:
-			e.setTargetSnapshotDir(self._mountPoint / bd)
-		
-		
-	def wasMountPointCreated(self):
-		"""Returns True if the mount()-Method created the directory of the mount point, false otherwise."""
-		return copy.deepcopy(self._mountPointCreated)
 	
 	def unmount(self):
 		verify.requireExistingPath(self._mountPoint)
@@ -238,6 +223,7 @@ class Backup:
 			logger.error('Failed to unmount "%s"!', str(self._mountPoint))
 			return False
 		logger.debug('"%s" was unmounted.', str(self._mountPoint))
+		self._mountPoint = None
 		#remove directory if it was created by mount():
 		if self.wasMountPointCreated():
 			os.rmdir(self._mountPoint)
