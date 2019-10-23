@@ -233,74 +233,84 @@ class Backup:
 	
 	def run(self):
 		e = self.getEntry()
-		logger.info('Starting Backup "%s".', e.getName())
-		ssd_source = e.getSourceSnapshotDir()
-		ssd_source.scan()
-		#lsssbb = latest source snapshot before backup
-		lsssbb = ssd_source.getNewestSnapshot()
-		#lsss = latest source snapshot
-		lsss = ssd_source.createSnapshot(e.getSourceSubvolume())
-		ssd_backup = e.getTargetSnapshotDir()
-		ssd_backup.scan()
-		#ltssbb = latest target snapshot before backup
-		ltssbb = ssd_backup.getNewestSnapshot()
-		
-		send_command = [ shutil.which('btrfs'), 'send' ]
-		
-		if str(lsssbb) == str(ltssbb) and lsssbb is not None:
-			#incremental backup
-			send_command.append('-p')
-			send_command.append(str(lsssbb.getSnapshotPath()))
-			send_command.append(str(lsss.getSnapshotPath()))
-			logger.info('Parent Snapshot: "%s".', str(lsssbb.getSnapshotPath()))
-		else:
-			#full backup
-			send_command.append(str(lsss.getSnapshotPath()))
-		logger.info('Snapshot: "%s".', str(lsss.getSnapshotPath()))
-		logger.info('Target Directory: "%s".', str(ssd_backup.getPath()))
-		
-		receive_command = [ shutil.which('btrfs'), 'receive', '-e', str(ssd_backup.getPath()) ]
-		
-		pp = None
+		logging_prefix = '[Backup "{}"] '.format(e.getName())
+		logger.info('%sStarting Backup.', logging_prefix)
 		try:
-			pp = os.pipe()
-			pread = pp[0]
-			pwrite = pp[1]
-			os.set_inheritable(pread, True)
-			os.set_inheritable(pwrite, True)
+			ssd_source = e.getSourceSnapshotDir()
+			ssd_source.scan()
+			#lsssbb = latest source snapshot before backup
+			lsssbb = ssd_source.getNewestSnapshot()
+			#lsss = latest source snapshot
+			lsss = ssd_source.createSnapshot(e.getSourceSubvolume())
+			ssd_backup = e.getTargetSnapshotDir()
+			ssd_backup.scan()
+			#ltssbb = latest target snapshot before backup
+			ltssbb = ssd_backup.getNewestSnapshot()
 			
-			process_send = subprocess.Popen(send_command, stdout = pwrite, close_fds = False)
-			process_receive = subprocess.Popen(receive_command, stdin = pread, close_fds = False)
+			send_command = [ shutil.which('btrfs'), 'send' ]
 			
-			return_send = process_send.poll()
-			while return_send is None:
-				sleep(1)
+			if str(lsssbb) == str(ltssbb) and lsssbb is not None:
+				#incremental backup
+				send_command.append('-p')
+				send_command.append(str(lsssbb.getSnapshotPath()))
+				send_command.append(str(lsss.getSnapshotPath()))
+				logger.info('%sParent Snapshot: "%s".', logging_prefix, str(lsssbb.getSnapshotPath()))
+			else:
+				#full backup
+				send_command.append(str(lsss.getSnapshotPath()))
+			logger.info('%sSnapshot: "%s".', logging_prefix, str(lsss.getSnapshotPath()))
+			logger.info('%sTarget Directory: "%s".', logging_prefix, str(ssd_backup.getPath()))
+			
+			receive_command = [ shutil.which('btrfs'), 'receive', '-e', str(ssd_backup.getPath()) ]
+			
+			pp = None
+			try:
+				logger.info('%sStarting transfer to the backup drive.', logging_prefix)
+				pp = os.pipe()
+				pread = pp[0]
+				pwrite = pp[1]
+				os.set_inheritable(pread, True)
+				os.set_inheritable(pwrite, True)
+				
+				process_send = subprocess.Popen(send_command, stdout = pwrite, close_fds = False)
+				process_receive = subprocess.Popen(receive_command, stdin = pread, close_fds = False)
+				
 				return_send = process_send.poll()
-			logger.debug('"btrfs send" returned "%s"', str(return_send))
+				while return_send is None:
+					sleep(1)
+					return_send = process_send.poll()
+				logger.debug('"btrfs send" returned "%s"', str(return_send))
+				
+				return_receive = process_receive.poll()
+				while return_receive is None:
+					sleep(1)
+					return_receive = process_send.poll()
+				logger.debug('"btrfs receive" returned "%s"', str(return_receive))
 			
-			return_receive = process_receive.poll()
-			while return_receive is None:
-				sleep(1)
-				return_receive = process_send.poll()
-			logger.debug('"btrfs receive" returned "%s"', str(return_receive))
-		
-			if return_send is 0 and return_receive is 0:
-				logger.info('Backup "%s" finished successfully.', e.getName())
-			if return_send is not 0:
-				#error in btrfs send
-				raise BackupError('btrfs send returned ' + str(return_send))
-			if return_receive is not 0:
-				#error in btrfs receive
-				raise BackupError('btrfs receive returned ' + str(return_receive))
-		finally:
-			if pp is not None:
-				os.close(pwrite)
-				os.close(pread)
-		
-		#delete old snapshots:
-		ssd_source.purgeSnapshots()
-		ssd_backup.scan()
-		ssd_backup.purgeSnapshots()
+				if return_send is 0 and return_receive is 0:
+					logger.info('%sThe new snapshot was successfully transferred to the backup drive.', logging_prefix)
+				if return_send is not 0:
+					#error in btrfs send
+					logger.error('%sBackup failed!', logging_prefix)
+					raise BackupError('btrfs send returned ' + str(return_send))
+				if return_receive is not 0:
+					#error in btrfs receive
+					logger.error('%sBackup failed!', logging_prefix)
+					raise BackupError('btrfs receive returned ' + str(return_receive))
+			finally:
+				if pp is not None:
+					os.close(pwrite)
+					os.close(pread)
+			
+			#delete old snapshots:
+			ssd_source.purgeSnapshots()
+			ssd_backup.scan()
+			ssd_backup.purgeSnapshots()
+		except Exception as e:
+			logger.error('%s%s', logging_prefix, e)
+			logger.error('%sThe backup did not run successfully!', logging_prefix)
+			raise e
+		logger.info('%sBackup job finished successfully.', logging_prefix)
 
 class BackupError(Exception):
 	"""Raised if something went wrong with the backup."""

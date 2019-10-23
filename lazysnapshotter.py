@@ -212,7 +212,7 @@ def main():
 		setupLogger()
 		pcmd = cmdline.action()
 		if pcmd is None:
-			sys.exit(globalstuff.status)
+			raise NoActionDefinedException
 		cf = loadConfig()
 		if pcmd.action == cmdline.ACTION_ADD:
 			cf.addConfigEntryFromCmdline(pcmd.data)
@@ -237,12 +237,18 @@ def main():
 					runBackup(cf, e)
 			finally:
 				cleanMountDir()
+	except NoActionDefinedException as e:
+		pass
 	except Exception as e:
 		globalstuff.printException(e)
 		if globalstuff.status == globalstuff.EXIT_SUCCESS:
 			globalstuff.status == globalstuff.EXIT_FAILURE
 	finally:
+		logging.shutdown()
 		sys.exit(globalstuff.status)
+
+class NoActionDefinedException(Exception):
+	pass
 
 if __name__== "__main__":
 	main()
