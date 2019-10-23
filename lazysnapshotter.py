@@ -56,8 +56,12 @@ def globalcmdline():
 
 
 def setupLogger():
-	f = '%(asctime)s: %(levelname)s - %(message)s'
-	logging.basicConfig(filename = globalstuff.logfile, level = globalstuff.loglevel, format = f, style = '%')
+	f = logging.Formatter(fmt = '%(asctime)s: %(levelname)s - %(message)s', style = '%')
+	handler = logging.FileHandler(globalstuff.logfile)
+	handler.setFormatter(f)
+	logger = logging.getLogger() #root logger
+	logger.setLevel(globalstuff.loglevel)
+	logger.addHandler(handler)
 	
 def loadConfig():
 	"""Reads the configuration file and loads its global options."""
@@ -205,6 +209,7 @@ Be advised that the backup device must be provided as an absolute file path or a
 def main():
 	try:
 		globalcmdline()
+		setupLogger()
 		pcmd = cmdline.action()
 		if pcmd is None:
 			sys.exit(globalstuff.status)
