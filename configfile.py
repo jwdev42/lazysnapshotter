@@ -38,6 +38,7 @@ ENTRY_SOURCE = 'source'
 ENTRY_SNAPSHOTDIR = 'snapshot-dir'
 ENTRY_TARGET = 'backup-device'
 ENTRY_TARGETDIR = 'backup-dir'
+ENTRY_KEYFILE = 'keyfile'
 #error strings
 ERR_UNKNOWN_KEY = 'The key "{}" is not defined!'
 ERR_INVALID_VALUE = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'
@@ -54,7 +55,8 @@ option_mapping_entry = { cmdline.ARG_NAME: None, \
 											cmdline.ARG_TARGET: [ ENTRY_TARGET, False ], \
 											cmdline.ARG_TARGETDIR: [ ENTRY_TARGETDIR, True ], \
 											cmdline.ARG_SNAPSHOTDIR: [ ENTRY_SNAPSHOTDIR, False ], \
-											cmdline.ARG_SNAPSHOTS: [ ENTRY_SNAPSHOTS, True ] }
+											cmdline.ARG_SNAPSHOTS: [ ENTRY_SNAPSHOTS, True ], \
+											cmdline.ARG_KEYFILE: [ ENTRY_KEYFILE, True ] }
 
 class Configfile:
 	def __init__(self, path: Path):

@@ -167,7 +167,17 @@ Be advised that the backup device must be provided as an absolute file path or a
 			else:
 				logger.debug('Opening LUKS container.')
 				unmap = True
-				backup.openLuks()
+				if configfile.ENTRY_KEYFILE in cfe:
+					keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
+					try:
+						verify.requireAbsolutePath(keyfile)
+						verify.requireExistingPath(keyfile)
+					except verify.VerificationError as e:
+						_b_error(e, name, reason = 'Verification of the keyfile failed.', \
+						advice = 'Please make sure the keyfile exists and is an absolute path.')
+					backup.openLuks(keyfile = keyfile)
+				else:
+					backup.openLuks()
 			mountpoint = mounts.getMountpoint(backup.getLuksMapping())
 		else:
 			logger.debug('Backup device is a Partition.')

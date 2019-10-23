@@ -156,7 +156,7 @@ class Backup:
 		dev = self._entry.getTargetDevice()
 		verify.requireAbsolutePath(dev)
 		if keyfile is not None and not isinstance(keyfile, Path):
-			raise TypeError('arg 1 must be of pathlib.Path')
+			raise TypeError('keyfile must be of pathlib.Path')
 		name = str(uuid.uuid4())
 		command = [ shutil.which('cryptsetup'), 'open', str(dev), name ]
 		if keyfile is not None:
@@ -223,10 +223,12 @@ class Backup:
 			logger.error('Failed to unmount "%s"!', str(self._mountPoint))
 			return False
 		logger.debug('"%s" was unmounted.', str(self._mountPoint))
-		self._mountPoint = None
 		#remove directory if it was created by mount():
-		if self.wasMountPointCreated():
-			os.rmdir(self._mountPoint)
+		try:
+			if self.wasMountPointCreated():
+				os.rmdir(self._mountPoint)
+		finally:
+			self._mountPoint = None
 		return True
 	
 	def run(self):

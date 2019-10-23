@@ -46,6 +46,7 @@ ARG_NOUMOUNT = '--nounmount'
 ARG_LOGFILE = '--logfile'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
+ARG_KEYFILE = '--keyfile'
 REQUIRED_ENTRY_OPTIONS = ( ARG_NAME, ARG_SOURCE, ARG_TARGET, ARG_SNAPSHOTDIR )
 ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
 ERR_INVALID_COMMAND = '"{}" is not a valid command!'
@@ -273,7 +274,7 @@ def _do_add_modify(res):
 				verify.requireRelativePath(td)
 				res.data[arg] = td
 				args.popleft()
-		elif arg == ARG_SOURCE or arg == ARG_SNAPSHOTDIR:
+		elif arg == ARG_SOURCE or arg == ARG_SNAPSHOTDIR or arg == ARG_KEYFILE:
 			_parse_arg_with_absolute_path(arg, res.data)
 		else:
 			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
