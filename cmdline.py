@@ -43,7 +43,7 @@ ARG_TARGETDIR = '--backup-dir'
 ARG_SNAPSHOTDIR = '--snapshot-dir'
 ARG_SNAPSHOTS = '--snapshots'
 ARG_NOUMOUNT = '--nounmount'
-ARG_LOGFILE = '--logfile'
+ARG_LOGFILE = '--log-file'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
 ARG_KEYFILE = '--keyfile'
@@ -167,36 +167,6 @@ def _parse_snapshots(arg, data):
 	else:
 		raise CommandLineError('Only between 1 and {} snapshots are supported!'.format(globalstuff.max_snapshots))
 
-def _process_run(args, data):
-	umount = False
-	bid = None
-	if len(args) == 0:
-		return
-	arg = args[0]
-	if arg == ARG_NOUMOUNT:
-		args.popleft()
-		umount = True
-		bid = _process_run_backupid(args)
-	else:
-		bid = _process_run_backupid(args)
-	if bid is not None:
-		data.append([bid, umount])
-		_process_run(args, data)
-	else:
-		if umount == True:
-			raise CommandLineError('Option "{}" needs an Argument!'.format(ARG_NOUMOUNT))
-	return
-
-def _process_run_backupid(args):
-	if len(args) == 0:
-		return None
-	if verify.backup_id(args[0]):
-		bid = args[0]
-		args.popleft()
-		return bid
-	else:
-		raise CommandLineError(ERR_BACKUP_ID.format(args[0]))
-
 def _pre_path_helper(arg, data, path):
 	_arg_helper(data, arg, 1)
 	if not path.is_absolute():
@@ -223,10 +193,36 @@ def _do_list(res):
 	return res
 
 def _do_run(res):
-	res.data = list()
-	_process_run(args, res.data)
-	if len(res.data) == 0:
-		raise CommandLineError(ERR_MISSING_ARGUMENT.format(ACTION_RUN))
+	res.data = dict()
+	while len(args) > 0:
+		arg = args[0]
+		args.popleft()
+		if arg == ARG_NOUMOUNT:
+			_arg_helper(res.data, arg, 0)
+			res.data[arg] = True
+		elif arg == ARG_KEYFILE:
+			_arg_helper(res.data, arg, 1)
+			p = Path(args[0])
+			if not p.is_absolute():
+				p = p.resolve()
+			try:
+				verify.requireExistingPath(p)
+			except verify.VerificationError as e:
+				raise CommandLineError('Keyfile does not exist: {}'.format(p))
+			res.data[arg] = p
+			args.popleft()
+		elif verify.backup_id(arg):
+			if ARG_NAME in res.data:
+				raise CommandLineError('The "{}" command supports only one backup name!'.format(ACTION_RUN))
+			res.data[ARG_NAME] = arg
+		else:
+			raise CommandLineError('"{}" is not a valid option for {}'.format(arg, ACTION_RUN))
+	if res.data[ARG_NAME] is None:
+		raise CommandLineError('The "{}" command needs a backup name!'.format(ACTION_RUN))
+	if not ARG_NOUMOUNT in res.data:
+		res.data[ARG_NOUMOUNT] = False
+	if not ARG_KEYFILE in res.data:
+		res.data[ARG_KEYFILE] = None
 	return res
 
 def _do_remove(res):
@@ -307,7 +303,6 @@ def _do_global(res):
 				_parse_snapshots(arg, res.data)
 		else:
 			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
-		
 	return res
 
 class CommandLineError(Exception):

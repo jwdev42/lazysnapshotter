@@ -96,9 +96,9 @@ def _b_error(e: Exception, name: str, reason: str = None, advice:str = None):
 	raise e
 	
 def runBackup(cf, backup_params):
-	
-	name = backup_params[0]
-	unmount = not backup_params[1] #controls if the backup volume will be unmounted after the backup
+	name = backup_params[cmdline.ARG_NAME]
+	unmount = not backup_params[cmdline.ARG_NOUMOUNT] #controls if the backup volume will be unmounted after the backup
+	keyfile = backup_params[cmdline.ARG_KEYFILE]
 	unmap = False #controls if the luks volume will be unmapped after the backup
 	cfe = cf.getConfigEntry(name)
 	if cfe is None:
@@ -171,8 +171,9 @@ Be advised that the backup device must be provided as an absolute file path or a
 			else:
 				logger.debug('Opening LUKS container.')
 				unmap = True
-				if configfile.ENTRY_KEYFILE in cfe:
-					keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
+				if configfile.ENTRY_KEYFILE in cfe or keyfile is not None:
+					if keyfile is None:
+						keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
 					try:
 						verify.requireAbsolutePath(keyfile)
 						verify.requireExistingPath(keyfile)
@@ -233,8 +234,7 @@ def main():
 		elif pcmd.action == cmdline.ACTION_RUN:
 			try:
 				createMountDir()
-				for e in pcmd.data:
-					runBackup(cf, e)
+				runBackup(cf, pcmd.data)
 			finally:
 				cleanMountDir()
 	except NoActionDefinedException as e:
