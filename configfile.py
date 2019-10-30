@@ -39,6 +39,7 @@ ENTRY_SNAPSHOTDIR = 'snapshot-dir'
 ENTRY_TARGET = 'backup-device'
 ENTRY_TARGETDIR = 'backup-dir'
 ENTRY_KEYFILE = 'keyfile'
+MANDATORY_ENTRY_KEYS = ( ENTRY_SOURCE, ENTRY_SNAPSHOTDIR, ENTRY_TARGET )
 #error strings
 ERR_UNKNOWN_KEY = 'The key "{}" is not defined!'
 ERR_INVALID_VALUE = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'
@@ -134,13 +135,41 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 	
 	def getConfigEntry(self, name: str):
 		if not self._cp.has_section(name):
-			return None
+			raise ConfigfileError('Entry "{}" does not exist in the configuration file!'.format(name))
 		section = self._cp[name]
 		return section
 	
 	def deleteConfigEntry(self, name: str):
 		return self._cp.remove_section(name)
-		
+	
+	def verifyConfigEntry(self, name: str):
+		e = self.getConfigEntry(name)
+		if not verify.backup_id(name):
+			raise ConfigfileError('Backup entry "{}" has an invalid name!'.format(name))
+		for k in MANDATORY_ENTRY_KEYS:
+			if not k in e:
+				raise ConfigfileError('Backup entry "{}": Mandatory key "{}" is missing!'.format(name, k))
+		check_abspath = [ ENTRY_SOURCE, ENTRY_SNAPSHOTDIR ]
+		if not verify.uuid(e[ENTRY_TARGET]):
+			check_abspath.append(ENTRY_TARGET)
+		if ENTRY_KEYFILE in e:
+			check_abspath.append(ENTRY_KEYFILE)
+		for k in check_abspath:
+			try:
+				verify.requireAbsolutePath(Path(e[k]))
+			except verify.VerificationError:
+				raise ConfigfileError('Backup entry "{}": Key "{}" requires an absolute file path!'.format(name, k))
+		if ENTRY_SNAPSHOTS in e:
+			try:
+				verify.requireRightAmountOfSnapshots(int(e[ENTRY_SNAPSHOTS]))
+			except verify.VerificationError:
+				raise ConfigfileError('Backup entry "{}": Key "{}" has an invalid value!'.format(name, ENTRY_SNAPSHOTS))
+		if ENTRY_TARGETDIR in e:
+			try:
+				verify.requireRelativePath(Path(e[ENTRY_TARGETDIR]))
+			except verify.VerificationError:
+				raise ConfigfileError('Backup entry "{}": Key "{}" requires a relative path!'.format(name, ENTRY_TARGETDIR))
+	
 	def loadGlobals(self):
 		sectionName = 'GLOBALS'
 		defaults = self._cp.defaults()

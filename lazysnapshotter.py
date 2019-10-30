@@ -101,57 +101,31 @@ def runBackup(cf, backup_params):
 	keyfile = backup_params[cmdline.ARG_KEYFILE]
 	unmap = False #controls if the luks volume will be unmapped after the backup
 	cfe = cf.getConfigEntry(name)
-	if cfe is None:
-		print('Backup "{}" does not exist!'.format(name))
-		return
+	cf.verifyConfigEntry(name)
 	be = libbackup.BackupEntry(name)
 	backup = libbackup.Backup(be)
 	
 	if configfile.ENTRY_SNAPSHOTS in cfe:
-		try:
-			be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
-		except (verify.VerificationError, ValueError) as e:
-			_b_error(e, name, reason = 'The backup\'s custom snapshot amount is invalid.', \
-			advice = 'Please set the backup entry\'s snapshot value between 1 and {}.'.format(globalstuff.max_snapshots))
+		be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
 	else:
 		be.setSnapshots(globalstuff.default_snapshots)
-	
-	try:
 		be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
-	except verify.VerificationError as e:
-		_b_error(e, name, reason = 'The backup source could not be validated.', \
-		advice = 'Please make sure that the backup source exists and is a valid btrfs subvolume.')
-	try:
 		be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
-	except verify.VerificationError as e:
-		_b_error(e, name, reason = 'The snapshot directory could not be validated.', \
-		advice = 'Please make sure that the snapshot directory exists.')
 	if configfile.ENTRY_TARGETDIR in cfe:
-		try:
 			be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
-		except verify.VerificationError as e:
-			_b_error(e, name, reason = 'The backup directory on the backup volume could not be validated.', \
-			advice = 'Please make sure that the backup directory is provided as a relative path starting from the root directory of the backup volume.')
-	
+				
 	#u_dev: unknown dev, could be a luks device or a partition, as uuid or absolute path
 	u_dev = cfe[configfile.ENTRY_TARGET]
 	
 	if verify.uuid(u_dev):
-		try:
 			u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
-		except verify.VerificationError as e:
-			_b_error(e, name, reason = 'No block device found for the backup device\'s UUID.', \
-			advice = 'Please make sure that the provided UUID is valid and the device is plugged in.')
-	
 	logger.debug('Using backup device "{}".'.format(u_dev))
 	backup_device = Path(u_dev)
 	try:
-		verify.requireAbsolutePath(backup_device)
+		#verifyConfigEntry() already validated an absolute path
 		verify.requireExistingPath(backup_device)
-	except verify.VerificationError as e:
-		_b_error(e, name, reason = 'Verification of the backup device failed.', \
-		advice = """Please make sure that the backup device exists.
-Be advised that the backup device must be provided as an absolute file path or a valid UUID.""")
+	except verify.VerificationError:
+		raise globalstuff.ApplicationError('Backup device does not exist: "{}".'.format(backup_device))
 	
 	isluks = None
 	try:
@@ -175,11 +149,9 @@ Be advised that the backup device must be provided as an absolute file path or a
 					if keyfile is None:
 						keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
 					try:
-						verify.requireAbsolutePath(keyfile)
 						verify.requireExistingPath(keyfile)
 					except verify.VerificationError as e:
-						_b_error(e, name, reason = 'Verification of the keyfile failed.', \
-						advice = 'Please make sure the keyfile exists and is an absolute path.')
+						raise globalstuff.ApplicationError('Keyfile does not exist: "{}"!'.format(keyfile))
 					backup.openLuks(keyfile = keyfile)
 				else:
 					backup.openLuks()
