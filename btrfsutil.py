@@ -155,20 +155,28 @@ class Snapshot:
 		return self.getSnapshotPath().exists()
 	
 	def __lt__(self, other):
-		if self._year < other._year and \
-		self._month < other._month  and \
-		self._day < other._day  and \
-		self._index < other._index:
+		if self._year < other._year:
 			return True
-		return False
+		elif self._year == other._year and self._month < other._month:
+			return True
+		elif self._year == other._year and self._month == other._month and self._day < other._day:
+			return True
+		elif self._year == other._year and self._month == other._month and self._day == other._day and self._index < other._index:
+			return True
+		else
+			return False
 	
 	def __gt__(self, other):
-		if self._year > other._year and \
-		self._month > other._month and \
-		self._day > other._day and \
-		self._index > other._index:
+		if self._year > other._year:
 			return True
-		return False
+		elif self._year == other._year and self._month > other._month:
+			return True
+		elif self._year == other._year and self._month == other._month and self._day > other._day:
+			return True
+		elif self._year == other._year and self._month == other._month and self._day == other._day and self._index > other._index:
+			return True
+		else
+			return False
 	
 	def __eq__(self, other):
 		if self._year == other._year and \
