@@ -238,27 +238,22 @@ class Backup:
 		try:
 			ssd_source = e.getSourceSnapshotDir()
 			ssd_source.scan()
-			#lsssbb = latest source snapshot before backup
-			lsssbb = ssd_source.getNewestSnapshot()
-			#lsss = latest source snapshot
-			lsss = ssd_source.createSnapshot(e.getSourceSubvolume())
 			ssd_backup = e.getTargetSnapshotDir()
 			ssd_backup.scan()
-			#ltssbb = latest target snapshot before backup
-			ltssbb = ssd_backup.getNewestSnapshot()
-			
+			common_snapshots = ssd_source.getCommonSnapshots(ssd_backup)
+			source_snapshot = ssd_source.createSnapshot(e.getSourceSubvolume())
 			send_command = [ shutil.which('btrfs'), 'send' ]
-			
-			if str(lsssbb) == str(ltssbb) and lsssbb is not None:
+			if len(common_snapshots[0]) > 0:
 				#incremental backup
+				parent_snapshot = common_snapshots[0][-1]
 				send_command.append('-p')
-				send_command.append(str(lsssbb.getSnapshotPath()))
-				send_command.append(str(lsss.getSnapshotPath()))
-				logger.info('%sParent Snapshot: "%s".', logging_prefix, str(lsssbb.getSnapshotPath()))
+				send_command.append(str(parent_snapshot.getSnapshotPath()))
+				send_command.append(str(source_snapshot.getSnapshotPath()))
+				logger.info('%sParent Snapshot: "%s".', logging_prefix, str(parent_snapshot.getSnapshotPath()))
 			else:
 				#full backup
-				send_command.append(str(lsss.getSnapshotPath()))
-			logger.info('%sSnapshot: "%s".', logging_prefix, str(lsss.getSnapshotPath()))
+				send_command.append(str(source_snapshot.getSnapshotPath()))
+			logger.info('%sSnapshot: "%s".', logging_prefix, str(source_snapshot.getSnapshotPath()))
 			logger.info('%sTarget Directory: "%s".', logging_prefix, str(ssd_backup.getPath()))
 			
 			receive_command = [ shutil.which('btrfs'), 'receive', '-e', str(ssd_backup.getPath()) ]

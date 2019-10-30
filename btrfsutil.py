@@ -97,7 +97,7 @@ class SnapshotDir:
 		s.create(source)
 		self._addSnapshot(s)
 		return s
-		#refactoringmarker
+	
 	def purgeSnapshots(self):
 		for s in self._snapshots[:]:
 			if len(self._snapshots) > self._keep:
@@ -112,6 +112,16 @@ class SnapshotDir:
 			return None
 		else:
 			return self._snapshots[-1]
+	
+	def getCommonSnapshots(self, otherdir: 'btrfsutil.SnapshotDir'):
+		common = [ list(), list() ]
+		for s in self._snapshots:
+			for os in otherdir._snapshots:
+				if s == os:
+					common[0].append(s)
+					common[1].append(os)
+					break
+		return common
 	
 	def printSnapshots(self):
 		for s in self._snapshots:
@@ -163,7 +173,7 @@ class Snapshot:
 			return True
 		elif self._year == other._year and self._month == other._month and self._day == other._day and self._index < other._index:
 			return True
-		else
+		else:
 			return False
 	
 	def __gt__(self, other):
@@ -175,7 +185,7 @@ class Snapshot:
 			return True
 		elif self._year == other._year and self._month == other._month and self._day == other._day and self._index > other._index:
 			return True
-		else
+		else:
 			return False
 	
 	def __eq__(self, other):
