@@ -43,6 +43,7 @@ MANDATORY_ENTRY_KEYS = ( ENTRY_SOURCE, ENTRY_SNAPSHOTDIR, ENTRY_TARGET )
 #error strings
 ERR_UNKNOWN_KEY = 'The key "{}" is not defined!'
 ERR_INVALID_VALUE = 'Config Section [{}]: Value "{}" is not valid for key "{}"!'
+ERR_ENOEXIST = 'Entry "{}" does not exist in the configuration file!'
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 	
 	def getConfigEntry(self, name: str):
 		if not self._cp.has_section(name):
-			raise ConfigfileError('Entry "{}" does not exist in the configuration file!'.format(name))
+			raise ConfigfileError(ERR_ENOEXIST.format(name))
 		section = self._cp[name]
 		return section
 	
@@ -154,6 +155,20 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 		for k, v in oldentry.items():
 			newentry[k] = v
 		self._cp.remove_section(oldname)
+	
+	def printConfigEntry(self, name: str):
+		e = self.getConfigEntry(name)
+		print('{}:'.format(name))
+		for k, v in e.items():
+			print('\t{} = {}'.format(k, v))
+	
+	def printConfigEntries(self, verbose = False):
+		es = self.getConfigEntries()
+		for k, v in es.items():
+			if verbose:
+				self.printConfigEntry(k)
+			else:
+				print(k)
 	
 	def verifyConfigEntry(self, name: str):
 		e = self.getConfigEntry(name)

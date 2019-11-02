@@ -47,6 +47,7 @@ ARG_LOGFILE = '--logfile'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
 ARG_KEYFILE = '--keyfile'
+ARG_VERBOSE = '--verbose'
 KEY_BACKUPID = 'backupid'
 REQUIRED_ENTRY_OPTIONS = ( ARG_NAME, ARG_SOURCE, ARG_TARGET, ARG_SNAPSHOTDIR )
 ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
@@ -62,9 +63,13 @@ class ProcessedCMDline():
 	"""Container class that stores the processed command line."""
 	def __init__(self):
 		self.action = None
-		self.data = None
-	
-	
+		self.data = None	
+
+class ListData():
+	def __init__(self):
+		self.verbose = False
+		self.entries = list()
+
 def displayValidCommands():
 	print('Valid commands:')
 	print('\t{}'.format(ACTION_GLOBAL))
@@ -188,6 +193,20 @@ def _do_pre(res):
 			return
 
 def _do_list(res):
+	res.data = ListData()
+	if len(args) > 0:
+		if args[0] == ARG_VERBOSE:
+			res.data.verbose = True
+			args.popleft()
+	while len(args) > 0:
+		arg = args[0]
+		args.popleft()
+		if verify.backup_id(arg):
+			if arg in res.data.entries:
+				raise CommandLineError(ERR_DUPLICATE_ARGUMENT.format(arg))
+			res.data.entries.append(arg)
+		else:
+			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
 	return res
 
 def _do_run(res):

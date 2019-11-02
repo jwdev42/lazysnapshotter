@@ -201,8 +201,13 @@ def main():
 			cf.addDefaultsFromCmdline(pcmd.data)
 			cf.write()
 		elif pcmd.action == cmdline.ACTION_LIST:
-			for e in cf.getConfigEntries().keys():
-				print(e)
+			if pcmd.data.verbose:
+				cf.printConfigEntries(verbose = True)
+			elif len(pcmd.data.entries) > 0:
+				for e in pcmd.data.entries:
+					cf.printConfigEntry(e)
+			else:
+				cf.printConfigEntries()
 		elif pcmd.action == cmdline.ACTION_RUN:
 			try:
 				createMountDir()
