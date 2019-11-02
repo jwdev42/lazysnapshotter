@@ -1,0 +1,6 @@
+This software is experimental and not meant for productive use yet.
+The command line interface still can change.
+Documentation is available under "doc", but it is not complete yet.
+
+To run this software successfully, you'll need to have btrfs-tools, cryptsetup and udev installed.
+
