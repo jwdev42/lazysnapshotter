@@ -51,7 +51,7 @@ option_mapping_defaults = { cmdline.ARG_LOGFILE: [ GLOBAL_LOGFILE, True ], \
 												cmdline.ARG_MNT: [ GLOBAL_MOUNTDIR, True ], \
 												cmdline.ARG_SNAPSHOTS: [ GLOBAL_SNAPSHOTS, True ] }
 
-option_mapping_entry = { cmdline.ARG_NAME: None, \
+option_mapping_entry = { cmdline.ARG_NAME: None, cmdline.KEY_BACKUPID: None, \
 											cmdline.ARG_SOURCE: [ ENTRY_SOURCE, False ], \
 											cmdline.ARG_TARGET: [ ENTRY_TARGET, False ], \
 											cmdline.ARG_TARGETDIR: [ ENTRY_TARGETDIR, True ], \
@@ -98,14 +98,19 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 				section[m[0]] = str(v)
 	
 	def _doConfigEntryFromCmdline(self, action, data):
-		name = data[cmdline.ARG_NAME]
+		name = None
 		if action == cmdline.ACTION_ADD:
+			name = data[cmdline.ARG_NAME]
 			if self._cp.has_section(name):
 				raise ConfigfileError('Entry "{}" already exists!'.format(name))
 			self._cp.add_section(name)
 		elif action == cmdline.ACTION_MODIFY:
+			name = data[cmdline.KEY_BACKUPID]
 			if not self._cp.has_section(name):
 				raise ConfigfileError('Entry "{}" does not exist!'.format(name))
+			if cmdline.ARG_NAME in data:
+				self.renameConfigEntry(name, data[cmdline.ARG_NAME])
+				name = data[cmdline.ARG_NAME]
 		else:
 			raise globalstuff.Bug
 		section = self._cp[name]
@@ -141,6 +146,14 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 	
 	def deleteConfigEntry(self, name: str):
 		return self._cp.remove_section(name)
+	
+	def renameConfigEntry(self, oldname: str, newname: str):
+		oldentry = self.getConfigEntry(oldname)
+		self._cp.add_section(newname)
+		newentry = self.getConfigEntry(newname)
+		for k, v in oldentry.items():
+			newentry[k] = v
+		self._cp.remove_section(oldname)
 	
 	def verifyConfigEntry(self, name: str):
 		e = self.getConfigEntry(name)

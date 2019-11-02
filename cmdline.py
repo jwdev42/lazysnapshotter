@@ -47,6 +47,7 @@ ARG_LOGFILE = '--logfile'
 ARG_LOGLEVEL = '--loglevel'
 ARG_MNT = '--mountdir'
 ARG_KEYFILE = '--keyfile'
+KEY_BACKUPID = 'backupid'
 REQUIRED_ENTRY_OPTIONS = ( ARG_NAME, ARG_SOURCE, ARG_TARGET, ARG_SNAPSHOTDIR )
 ERR_BACKUP_ID = '"{}" is not a valid backup identifier!'
 ERR_INVALID_COMMAND = '"{}" is not a valid command!'
@@ -103,16 +104,13 @@ def _action():
 		res.action = args[0]
 		args.popleft()
 		if res.action == ACTION_ADD:
-			res = _do_add_modify(res)
+			res = _do_add(res)
 			if not isEntryComplete(res.data):
 				displayEntryExample()
 				raise CommandLineError('You entered an incomplete backup entry!')
 			return res
 		elif res.action == ACTION_MODIFY:
-			res = _do_add_modify(res)
-			if not ARG_NAME in res.data:
-				raise CommandLineError('You need to specify the name of the entry to be modified!')
-			return res
+			return _do_modify(res)
 		elif res.action == ACTION_REMOVE:
 			return _do_remove(res)
 		elif res.action == ACTION_LIST:
@@ -238,7 +236,6 @@ def _do_remove(res):
 	return res
 
 def _do_add_modify(res):
-	res.data = dict()
 	while len(args) > 0:
 		arg = args[0]
 		args.popleft() #args[0] now points to first parameter
@@ -275,6 +272,19 @@ def _do_add_modify(res):
 		else:
 			raise CommandLineError(ERR_INVALID_ARGUMENT.format(arg))
 	return res
+
+def _do_add(res):
+	res.data = dict()
+	return _do_add_modify(res)
+	
+def _do_modify(res):
+	res.data = dict()
+	backupid = args[0]
+	args.popleft()
+	if not verify.backup_id(backupid):
+		raise CommandLineError('Action {}: first argument must be a valid backup name.'.format(ACTION_MODIFY))
+	res.data[KEY_BACKUPID] = backupid
+	return _do_add_modify(res)
 
 def _do_global(res):
 	res.data = dict()
