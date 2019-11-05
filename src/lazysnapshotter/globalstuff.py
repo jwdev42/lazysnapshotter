@@ -19,7 +19,6 @@
 import logging
 import traceback
 import sys
-import globalstuff
 from pathlib import Path
 
 #Exit Codes:
@@ -40,7 +39,7 @@ default_snapshots = 2
 max_snapshots = 255
 
 def printException(e: Exception, trace = False):
-	if trace or globalstuff.debug_mode:
+	if trace or debug_mode:
 		traceback.print_exc(file = sys.stderr)
 	else:
 		print('{}: {}'.format(type(e).__name__, e), file = sys.stderr)

@@ -1,4 +1,5 @@
-__pycache__
-test.log
-test.conf
-testkey.txt
+__pycache__/
+/test
+/build
+/dist
+*.egg-info/

@@ -20,7 +20,7 @@ import re
 import logging
 from pathlib import Path
 
-import globalstuff
+from . import globalstuff
 
 _regexes = dict()
 _regexes['backup_id'] = re.compile('^(\w|\d)(\w|\d|-)*$')

@@ -20,13 +20,13 @@ import traceback
 import sys
 import os.path
 
-import cmdline
-import configfile
-import globalstuff
-import libbackup
-import verify
-import mounts
-import util
+from . import cmdline
+from . import configfile
+from . import globalstuff
+from . import libbackup
+from . import verify
+from . import mounts
+from . import util
 
 from uuid import UUID
 from pathlib import Path
@@ -179,7 +179,7 @@ def runBackup(cf, backup_params):
 		if unmap:
 			backup.closeLuks()
 	
-def main():
+def run():
 	try:
 		globalcmdline()
 		setupLogger()
@@ -226,6 +226,3 @@ def main():
 
 class NoActionDefinedException(Exception):
 	pass
-
-if __name__== "__main__":
-	main()

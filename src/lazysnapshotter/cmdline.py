@@ -22,8 +22,8 @@ from collections import deque
 from pathlib import Path
 from uuid import UUID
 
-import globalstuff
-import verify
+from . import globalstuff
+from . import verify
 
 #constants:
 ACTION_ADD = 'add'

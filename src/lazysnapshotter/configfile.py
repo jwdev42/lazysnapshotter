@@ -20,10 +20,10 @@ import configparser
 import logging
 import copy
 
-import globalstuff
-import cmdline
-import verify
-import util
+from . import globalstuff
+from . import cmdline
+from . import verify
+from . import util
 
 from uuid import UUID
 from pathlib import Path

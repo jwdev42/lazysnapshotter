@@ -22,8 +22,8 @@ import datetime
 import os
 import copy
 
-import globalstuff
-import verify
+from . import globalstuff
+from . import verify
 
 from pathlib import Path
 

@@ -21,8 +21,8 @@ import subprocess
 import shutil
 import json
 
-import globalstuff
-import verify
+from . import globalstuff
+from . import verify
 
 from uuid import UUID
 from pathlib import Path

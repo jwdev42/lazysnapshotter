@@ -27,10 +27,10 @@ import warnings
 from pathlib import Path
 from time import sleep
 
-import globalstuff
-import verify
-import mounts
-import btrfsutil
+from . import globalstuff
+from . import verify
+from . import mounts
+from . import btrfsutil
 
 logger = logging.getLogger(__name__)
 
