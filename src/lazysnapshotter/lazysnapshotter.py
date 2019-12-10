@@ -175,7 +175,8 @@ def runBackup(cf, backup_params):
 		backup.run()
 	finally:
 		if unmount:
-			backup.unmount()
+			if backup.unmount(tries = 2, interval = 90):
+				backup.removeMountPoint()
 		if unmap:
 			backup.closeLuks()
 	

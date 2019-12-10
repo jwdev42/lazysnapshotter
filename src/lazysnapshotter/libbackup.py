@@ -209,27 +209,33 @@ class Backup:
 		self._mountPoint = mountpath
 		logger.debug('Device "%s" mounted at "%s".', str(dev), str(self._mountPoint))
 	
-	def unmount(self):
+	def unmount(self, tries = 1, interval = 0):
 		verify.requireExistingPath(self._mountPoint)
 		if not self.isMounted():
 			logger.warning('Cannot unmount "%s" as it is not mounted!', str(self._mountPoint))
 			return False
 		command = [ shutil.which('umount'), str(self._mountPoint) ]
-		res = subprocess.run(command)
-		try:
-			res.check_returncode()
-		except subprocess.CalledProcessError as e:
-			globalstuff.printException(e)
-			logger.error('Failed to unmount "%s"!', str(self._mountPoint))
-			return False
-		logger.debug('"%s" was unmounted.', str(self._mountPoint))
-		#remove directory if it was created by mount():
+		while tries > 0:
+			res = subprocess.run(command)
+			if res.returncode == 0:
+				logger.debug('"%s" was unmounted.', str(self._mountPoint))
+				return True
+			elif res.returncode == 32 and tries > 1:
+				logger.info('Could not unmount device "%s" as it is busy, will try again in %s seconds for %s times.', str(self._mountPoint), str(interval), str(tries))
+				sleep(interval)
+			else:
+				logger.error('Failed to unmount "%s", umount returned %s!', str(self._mountPoint), str(res.returncode))
+				return False
+			tries = tries - 1
+		return False
+	
+	def removeMountPoint(self):
+		#remove mount point directory if it was created by mount():
 		try:
 			if self.wasMountPointCreated():
 				os.rmdir(self._mountPoint)
 		finally:
 			self._mountPoint = None
-		return True
 	
 	def run(self):
 		e = self.getEntry()
