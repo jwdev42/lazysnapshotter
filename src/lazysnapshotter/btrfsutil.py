@@ -92,7 +92,7 @@ class SnapshotDir:
 			s.getIndex() > indexmm:
 				indexmm = s.getIndex()
 		index = indexmm + 1
-		fname = '{}-{}-{}.{}'.format(today.year, today.month, today.day, index)
+		fname = '{}-{}-{}.{}'.format(ytoiso(today.year), mtoiso(today.month), dtoiso(today.day), index)
 		s = Snapshot(self, fname, today.year, today.month, today.day, index)
 		s.create(source)
 		self._addSnapshot(s)
@@ -235,4 +235,33 @@ def isSnapshotName(name):
 		return False
 	return True
 
+def ytoiso(y: int):
+	"""Convert an integer to an ISO 8601 year string"""
+	if 1000 <= y <= 9999:
+		return str(y)
+	elif 100 <= y <= 999:
+		return '0{}'.format(y)
+	elif 10 <= y <= 99:
+		return '00{}'.format(y)
+	elif 0 <= y <= 9:
+		return '000{}'.format(y)
+	else:
+		raise ValueError('Integer must be between 0 and 9999')
 
+def mtoiso(y: int):
+	"""Convert an integer to an ISO 8601 month string"""
+	if 10 <= y <= 12:
+		return str(y)
+	elif 1 <= y <= 9:
+		return '0{}'.format(y)
+	else:
+		raise ValueError('Integer must be between 1 and 12')
+
+def dtoiso(y: int):
+	"""Convert an integer to an ISO 8601 day string"""
+	if 10 <= y <= 31:
+		return str(y)
+	elif 1 <= y <= 9:
+		return '0{}'.format(y)
+	else:
+		raise ValueError('Integer must be between 1 and 31')
