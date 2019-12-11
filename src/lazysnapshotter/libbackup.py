@@ -30,7 +30,7 @@ from time import sleep
 from . import globalstuff
 from . import verify
 from . import mounts
-from . import btrfsutil
+from . import snapshotkit
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,9 @@ class BackupEntry:
 		verify.requireAbsolutePath(ss_dir)
 		verify.requireExistingPath(ss_dir)
 		if self._snapshots is not None:
-			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir, keep = self._snapshots)
+			self._sourceSnapshotDir = snapshotkit.SnapshotDir(ss_dir, keep = self._snapshots)
 		else:
-			self._sourceSnapshotDir = btrfsutil.SnapshotDir(ss_dir)
+			self._sourceSnapshotDir = snapshotkit.SnapshotDir(ss_dir)
 	
 	def setTargetDevice(self, path: Path):
 		"""Sets the passed block device as the unencrypted target partition on the backup medium."""
@@ -79,9 +79,9 @@ class BackupEntry:
 		verify.requireAbsolutePath(tss_dir)
 		verify.requireExistingPath(tss_dir)
 		if self._snapshots is not None:
-			self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir, self._snapshots)
+			self._targetSnapshotDir = snapshotkit.SnapshotDir(tss_dir, self._snapshots)
 		else:
-			self._targetSnapshotDir = btrfsutil.SnapshotDir(tss_dir)
+			self._targetSnapshotDir = snapshotkit.SnapshotDir(tss_dir)
 	
 	def setSnapshots(self, snapshots: int):
 		if self._sourceSnapshotDir is not None or self._targetSnapshotDir is not None:

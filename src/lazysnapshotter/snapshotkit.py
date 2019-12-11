@@ -40,7 +40,7 @@ class SnapshotDir:
 		self._keep = keep
 		self._scanned = False
 		
-	def _addSnapshot(self, snapshot: 'btrfsutil.Snapshot'):
+	def _addSnapshot(self, snapshot: 'snapshotkit.Snapshot'):
 		if snapshot.getSnapshotDir() is not self:
 			raise globalstuff.Bug
 		for existing in self._snapshots:
@@ -81,7 +81,7 @@ class SnapshotDir:
 				self._addSnapshot(s)
 		self._scanned = True
 	
-	def createSnapshot(self, source: Path) -> 'btrfsutil.Snapshot':
+	def createSnapshot(self, source: Path) -> 'snapshotkit.Snapshot':
 		verify.requireAbsolutePath(source)
 		today = datetime.date.today()
 		indexmm = 0
@@ -107,13 +107,13 @@ class SnapshotDir:
 			else:
 				break
 	
-	def getNewestSnapshot(self) -> 'btrfsutil.Snapshot':
+	def getNewestSnapshot(self) -> 'snapshotkit.Snapshot':
 		if len(self._snapshots) < 1:
 			return None
 		else:
 			return self._snapshots[-1]
 	
-	def getCommonSnapshots(self, otherdir: 'btrfsutil.SnapshotDir'):
+	def getCommonSnapshots(self, otherdir: 'snapshotkit.SnapshotDir'):
 		common = [ list(), list() ]
 		for s in self._snapshots:
 			for os in otherdir._snapshots:
