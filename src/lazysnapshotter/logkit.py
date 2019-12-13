@@ -22,7 +22,7 @@ from pathlib import Path
 
 class LogKit:
 	
-	frmttr = logging.Formatter(fmt = '%(asctime)s: %(levelname)s - %(message)s', style = '%')
+	frmttr = logging.Formatter(fmt = '%(asctime)s: %(levelname)s - %(message)s', datefmt = '%Y-%m-%d %H:%M:%S', style = '%')
 	rootlogger = logging.getLogger()
 	
 	def __init__(self, loglevel):

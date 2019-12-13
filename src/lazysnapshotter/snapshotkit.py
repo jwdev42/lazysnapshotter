@@ -45,24 +45,13 @@ class SnapshotDir:
 			raise globalstuff.Bug
 		for existing in self._snapshots:
 			if existing < snapshot: #snapshot is newer
-				logger.debug('Snapshot "%s" is newer than Snapshot "%s", will continue.', \
-				str(snapshot), str(existing))
 				continue
 			elif existing > snapshot: #snapshot is older
-				logger.debug('Snapshot "%s" will be inserted before Snapshot "%s".', \
-				str(snapshot), str(existing))
 				i = self._snapshots.index(existing)
 				self._snapshots.insert(i, snapshot)
 				return
 			elif existing == snapshot:
 				raise globalstuff.Bug('Duplicate Snapshot!')
-		
-		if logger.getEffectiveLevel() == logging.DEBUG:
-			if len(self._snapshots) == 0:
-				logger.debug('Snapshot "%s" will be inserted as first element.', str(snapshot))
-			else:
-				logger.debug('Snapshot "%s" will be inserted after "%s".', str(snapshot), str(self._snapshots[-1]))
-		
 		self._snapshots.append(snapshot)
 	
 	def getPath(self):
@@ -70,6 +59,7 @@ class SnapshotDir:
 	
 	def scan(self):
 		"""Scans the directory for Snapshots and adds them to the internal data structure."""
+		ignoreditems= list()
 		if self._scanned:
 			self._snapshots = list()
 			logger.debug('Rescanning snapshot directory "%s"', str(self.getPath()))
@@ -79,6 +69,22 @@ class SnapshotDir:
 			if f.is_dir() and isSnapshotName(str(f.name)):
 				s = FileNameSnapshot(self, str(f.name))
 				self._addSnapshot(s)
+			else:
+				ignoreditems.append(str(f))
+		if logger.getEffectiveLevel() == logging.DEBUG:
+			if len(self._snapshots) > 0:
+				sss = ''
+				i = 1
+				for ss in self._snapshots:
+					sss = sss + '\t\t\t\t' + str(ss)
+					if i < len(self._snapshots):
+						sss = sss + '\n'
+					i = i + 1
+				logger.debug('Snapshots found:\n%s', sss)
+			else:
+				logger.debug('No snapshots found.')
+			if len(ignoreditems) > 0:
+				logger.debug('Ignored items: %s', str(ignoreditems))
 		self._scanned = True
 	
 	def createSnapshot(self, source: Path) -> 'snapshotkit.Snapshot':
