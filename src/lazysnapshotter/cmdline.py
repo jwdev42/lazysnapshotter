@@ -188,6 +188,13 @@ def _do_pre(res):
 		elif arg == ARG_PRE_DEBUGMODE:
 			_arg_helper(res.data, arg, 0)
 			res.data[ARG_PRE_DEBUGMODE] = True
+		elif arg == ARG_PRE_LOGLEVEL:
+			_arg_helper(res.data, arg, 1)
+			level = args[0]
+			if not level in verify.LOGLEVELS:
+				raise CommandLineError('"{}" is not a valid log level!'.format(level))
+			res.data[arg] = level
+			args.popleft()
 		else:
 			args.appendleft(arg)
 			return
@@ -319,10 +326,10 @@ def _do_global(res):
 			if _arg_optionless(res.data, arg):
 				continue
 			else:
+				_arg_helper(res.data, arg, 1)
 				level = args[0]
 				if not level in verify.LOGLEVELS:
 					raise CommandLineError('"{}" is not a valid log level!'.format(level))
-				_arg_helper(res.data, arg, 1)
 				res.data[arg] = level
 				args.popleft()
 		elif arg == ARG_SNAPSHOTS:
