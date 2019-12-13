@@ -203,17 +203,13 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 		defaults = self._cp.defaults()
 		for k, v in defaults.items():
 			if k == GLOBAL_LOGFILE:
-				if globalstuff.logfile_from_cmdline:
-					continue
 				p = Path(v)
-				verify.requireAbsolutePath(p)
-				globalstuff.logfile = Path(v)
+				globalstuff.log.addLogFile(p)
 			elif k == GLOBAL_LOGLEVEL:
-				if globalstuff.debug_mode or globalstuff.loglevel_from_cmdline:
-					continue
 				ll = util.str_to_loglevel(v)
 				if ll is None:
 					raise ConfigfileError(ERR_INVALID_VALUE.format(sectionName, k, v))
+				globalstuff.log.setLevel(ll, 1)
 			elif k == GLOBAL_MOUNTDIR:
 				p = Path(v)
 				verify.requireAbsolutePath(p)

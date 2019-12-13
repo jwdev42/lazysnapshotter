@@ -20,6 +20,7 @@ import logging
 import traceback
 import sys
 from pathlib import Path
+from .logkit import LogKit
 
 #Exit Codes:
 EXIT_SUCCESS = 0 #normal program exit
@@ -28,23 +29,19 @@ EXIT_COMMANDLINE = 2 #Error while processing the command line arguments
 EXIT_BUG = 23 #a bug was triggered
 
 config_backups = Path('/etc/lazysnapshotter/backups.conf')
-logfile = Path('/var/log/lazysnapshotter.log')
-logfile_from_cmdline = False
-loglevel = logging.INFO
-loglevel_from_cmdline = False
+log = LogKit(logging.INFO)
 mountdir = Path('/run/lazysnapshotter')
 status = EXIT_SUCCESS
 debug_mode = False
 default_snapshots = 2
 max_snapshots = 255
 
+
 def printException(e: Exception, trace = False):
 	if trace or debug_mode:
 		traceback.print_exc(file = sys.stderr)
 	else:
 		print('{}: {}'.format(type(e).__name__, e), file = sys.stderr)
-
-
 
 class Bug(Exception):
 	def __init__(self, msg = None):

@@ -40,28 +40,17 @@ def globalcmdline():
 	for k, v in pcmd.data.items():
 		if k == cmdline.ARG_PRE_DEBUGMODE and v:
 			globalstuff.debug_mode = True
-			globalstuff.loglevel = logging.DEBUG
+			globalstuff.log.setLevel(logging.DEBUG, 3)
+			logging.debug('Set debug mode.')
 		elif k == cmdline.ARG_PRE_CONFIGFILE:
 			globalstuff.config_backups = v
 		elif k == cmdline.ARG_PRE_LOGFILE:
-			globalstuff.logfile = v
-			globalstuff.logfile_from_cmdline = True
+			globalstuff.log.addLogFile(Path(v))
 		elif k == cmdline.ARG_PRE_LOGLEVEL:
 			ll = util.str_to_loglevel(v)
 			if ll is None:
 				raise globalstuff.Bug
-			if not globalstuff.debug_mode:
-				globalstuff.loglevel = ll
-				globalstuff.loglevel_from_cmdline = True
-
-
-def setupLogger():
-	f = logging.Formatter(fmt = '%(asctime)s: %(levelname)s - %(message)s', style = '%')
-	handler = logging.FileHandler(globalstuff.logfile)
-	handler.setFormatter(f)
-	logger = logging.getLogger() #root logger
-	logger.setLevel(globalstuff.loglevel)
-	logger.addHandler(handler)
+			globalstuff.log.setLevel(ll, 2)
 	
 def loadConfig():
 	"""Reads the configuration file and loads its global options."""
@@ -183,7 +172,6 @@ def runBackup(cf, backup_params):
 def run():
 	try:
 		globalcmdline()
-		setupLogger()
 		pcmd = cmdline.action()
 		if pcmd is None:
 			raise NoActionDefinedException
