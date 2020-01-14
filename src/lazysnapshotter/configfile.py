@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #lazysnapshotter - a backup tool using btrfs
-#Copyright (C) 2019  Joerg Walter
+#Copyright (C) 2020 Joerg Walter
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
