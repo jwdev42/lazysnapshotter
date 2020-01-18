@@ -19,6 +19,7 @@
 import configparser
 import logging
 import copy
+import fcntl
 
 from . import globalstuff
 from . import cmdline
@@ -69,16 +70,22 @@ class Configfile:
 		
 	def read(self):
 		if self._path.exists():
-			self._cp.read(self._path)
+			with open(self._path, 'r') as locker:
+				fcntl.flock(locker.fileno(), fcntl.LOCK_SH)
+				self._cp.read(self._path)
 	
 	def write(self):
 		if not self._path.exists():
 			pdir = self._path.parent
 			if not pdir.exists():
 				pdir.mkdir(parents=True)
+			newfile = open(self._path, 'w')
+			newfile.close()
 		try:
-			with open(self._path, 'w') as cf:
-				self._cp.write(cf)
+			with open(self._path, 'r') as locker:
+				fcntl.flock(locker.fileno(), fcntl.LOCK_EX)
+				with open(self._path, 'w') as cf:
+					self._cp.write(cf)
 		except PermissionError as e:
 			raise ConfigfileError("""You don't have permission to write to the configuration file, your changes have not been saved!
 Configuration file location: \"{}\"""".format(globalstuff.config_backups))
