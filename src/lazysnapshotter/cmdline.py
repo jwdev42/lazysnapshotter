@@ -171,7 +171,6 @@ def _parse_snapshots(arg, data):
 		raise CommandLineError('Only between 1 and {} snapshots are supported!'.format(globalstuff.max_snapshots))
 
 def _pre_path_helper(arg, data, path):
-	_arg_helper(data, arg, 1)
 	if not path.is_absolute():
 		path = path.resolve()
 	data[arg] = path
@@ -184,6 +183,7 @@ def _do_pre(res):
 		arg = args[0]
 		args.popleft()
 		if arg == ARG_PRE_CONFIGFILE or arg == ARG_PRE_LOGFILE:
+			_arg_helper(res.data, arg, 1)
 			_pre_path_helper(arg, res.data, Path(args[0]))
 		elif arg == ARG_PRE_DEBUGMODE:
 			_arg_helper(res.data, arg, 0)
