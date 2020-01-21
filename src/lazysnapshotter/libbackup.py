@@ -157,7 +157,7 @@ class Backup:
 		verify.requireAbsolutePath(dev)
 		if keyfile is not None and not isinstance(keyfile, Path):
 			raise TypeError('keyfile must be of pathlib.Path')
-		name = str(uuid.uuid4())
+		name = str(globalstuff.session.session_id)
 		command = [ shutil.which('cryptsetup'), 'open', str(dev), name ]
 		if keyfile is not None:
 			command.append('--key-file')
@@ -189,13 +189,12 @@ class Backup:
 		self._luksmapping = None
 		return True
 	
-	def mount(self, path: Path):
-		appendix = Path(self.getEntry().getName())
-		verify.requireAbsolutePath(path)
-		verify.requireExistingPath(path)
-		mountpath = path / appendix
+	def mount(self, mountpath: Path):
+		verify.requireAbsolutePath(mountpath)
+		verify.requireExistingPath(mountpath.parent)
 		if not mountpath.exists():
 			os.mkdir(mountpath)
+			logger.debug('Created mount point "%s".', str(mountpath))
 			self._mountPointCreated = True
 		dev = None
 		if self._luksmapping is not None:

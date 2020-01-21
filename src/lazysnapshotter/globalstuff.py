@@ -21,6 +21,7 @@ import traceback
 import sys
 from pathlib import Path
 from .logkit import LogKit
+from .sessionkit import Session
 
 #Exit Codes:
 EXIT_SUCCESS = 0 #normal program exit
@@ -30,14 +31,14 @@ EXIT_BUG = 23 #a bug was triggered
 
 config_backups = Path('/etc/lazysnapshotter/backups.conf')
 log = LogKit(logging.INFO)
-mountdir = Path('/run/lazysnapshotter')
+session = Session(Path('/run/lazysnapshotter'))
 status = EXIT_SUCCESS
 debug_mode = False
 default_snapshots = 2
 max_snapshots = 255
 
 
-def printException(e: Exception, trace = False):
+def printException(e: Exception, trace = True):
 	if trace or debug_mode:
 		traceback.print_exc(file = sys.stderr)
 	else:

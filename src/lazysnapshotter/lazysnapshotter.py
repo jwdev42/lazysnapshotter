@@ -59,21 +59,6 @@ def loadConfig():
 	cf.loadGlobals()
 	return cf
 
-def createMountDir():
-	if not os.path.exists(globalstuff.mountdir):
-		os.mkdir(globalstuff.mountdir)
-		logger.debug('Created mount directory "{}".'.format(str(globalstuff.mountdir)))
-	elif not os.path.isdir(globalstuff.mountdir):
-		raise globalstuff.ApplicationError('"{}" is expected to be a directory!'.format(globalstuff.mountdir))
-	else:
-		logger.debug('Mount directory "{}" already exists.'.format(str(globalstuff.mountdir)))
-
-def cleanMountDir():
-	if os.path.isdir(globalstuff.mountdir):
-		if len(os.listdir(globalstuff.mountdir)) == 0:
-			os.rmdir(globalstuff.mountdir)
-			logger.debug('Removed mount directory "{}".'.format(str(globalstuff.mountdir)))
-
 def _b_error(e: Exception, name: str, reason: str = None, advice:str = None):
 	"""Called by runBackup on specific errors, creates a human-readable error description."""
 	print('ERROR:\t\tBackup "{}" could not be run!'.format(name), file = sys.stderr)
@@ -150,7 +135,7 @@ def runBackup(cf, backup_params):
 			mountpoint = mounts.getMountpoint(be.getTargetDevice())
 		if mountpoint is None:
 			logger.debug('Mounting Partition.')
-			backup.mount(globalstuff.mountdir)
+			backup.mount(globalstuff.session.getMountDir(create_parent = True))
 		else:
 			logger.debug('Partition is already mounted.')
 			backup.setMountPoint(mountpoint)
@@ -199,10 +184,10 @@ def run():
 				cf.printConfigEntries()
 		elif pcmd.action == cmdline.ACTION_RUN:
 			try:
-				createMountDir()
+				globalstuff.session.setup()
 				runBackup(cf, pcmd.data)
 			finally:
-				cleanMountDir()
+				globalstuff.session.cleanup()
 	except NoActionDefinedException as e:
 		pass
 	except Exception as e:

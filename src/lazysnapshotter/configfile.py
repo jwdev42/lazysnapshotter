@@ -220,7 +220,7 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 			elif k == GLOBAL_MOUNTDIR:
 				p = Path(v)
 				verify.requireAbsolutePath(p)
-				globalstuff.mountdir = Path(v)
+				globalstuff.session.customizeMountDir(Path(v))
 			elif k == ENTRY_SNAPSHOTS:
 				ss = int(v)
 				if verify.snapshot_count(ss):
