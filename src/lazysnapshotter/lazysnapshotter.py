@@ -79,6 +79,8 @@ def runBackup(cf, backup_params):
 	be = libbackup.BackupEntry(name)
 	backup = libbackup.Backup(be)
 	
+	globalstuff.session.registerBackup(name, globalstuff.config_backups)
+	
 	if configfile.ENTRY_SNAPSHOTS in cfe:
 		be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
 	else:
@@ -153,6 +155,7 @@ def runBackup(cf, backup_params):
 				backup.removeMountPoint()
 		if unmap:
 			backup.closeLuks()
+		globalstuff.session.releaseBackup()
 	
 def run():
 	try:

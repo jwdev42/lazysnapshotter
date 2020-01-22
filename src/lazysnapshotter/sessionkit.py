@@ -16,6 +16,8 @@
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
 import copy
+import csv
+import fcntl
 import logging
 import os
 import os.path
@@ -28,13 +30,92 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-class BackupJob:
+class DuplicateJobException(Exception):
+	pass
+
+class MalformedCsvEntryException(Exception):
+	pass
+
+class JobDialect(csv.Dialect):
+	delimiter = ':'
+	escapechar = '\\'
+	quoting = csv.QUOTE_NONE
+	lineterminator = '\n'
+	
+class JobFile:
+	
+	columns = ( 'name', 'configfile', 'pid', 'jobid' )
 	
 	def __init__(self, jobfile: Path):
 		self.jobfile = jobfile
+		
+	def read(self) -> list:
+		ret = list()
+		with open(self.jobfile, 'r') as f:
+			fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+			reader = csv.reader(f, dialect = JobDialect)
+			for l in reader:
+				ret.append(l)
+		return ret
+	
+	def createFile(self):
+		if not self.jobfile.exists():
+			with open(self.jobfile, 'w') as f:
+				pass
+	
+	def query(self, query: dict) -> list:
+		ret = list()
+		with open(self.jobfile, 'r') as f:
+			fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+			reader = csv.reader(f, dialect = JobDialect)
+			for l in reader:
+				match = True
+				for k, v in query.items():
+					try:
+						index = JobFile.columns.index(k)
+					except ValueError:
+						raise globalstuff.Bug('Malformed query: Key \'{}\' is not part of the allowed query keys {}!'.format(k, str(JobFile.columns)))
+					if index >= len(l):
+						match = False
+						break
+					if l[index] != v:
+						match = False
+						break
+				if match:
+					ret.append(l)
+		return ret
 
-	def register(self, pid, configfile, identifier):
-		pass
+	def register(self, job_name, configfile, job_id):
+		verify.requireAbsolutePath(configfile)
+		l = self.query( { JobFile.columns[0]: job_name, JobFile.columns[1]: str(configfile) } )
+		if len(l) == 0:
+			with open(self.jobfile, 'r') as filelock:
+				fcntl.flock(filelock.fileno(), fcntl.LOCK_EX)
+				with open(self.jobfile, 'a') as f:
+					writer = csv.writer(f, dialect = JobDialect)
+					writer.writerow( [ job_name, str(configfile), str(os.getpid()), str(job_id) ] )
+					logger.debug('Backup job recorded in JobFile.')
+		else:
+			raise DuplicateJobException('The same backup job is already running!')
+	
+	def release(self, job_id):
+		filebuffer = list()
+		with open(self.jobfile, 'r') as f_read:
+			fcntl.flock(f_read.fileno(), fcntl.LOCK_EX)
+			reader = csv.reader(f_read, dialect = JobDialect)
+			for l in reader:
+				if len(l) != 4:
+					raise MalformedCsvEntryException('JobFile records must have 4 columns.')
+				if l[3] == str(job_id):
+					logger.debug('Found backup job in JobFile for release!')
+				else:
+					filebuffer.append(l)
+			with open(self.jobfile, 'w') as f_write:
+				writer = csv.writer(f_write, dialect = JobDialect)
+				for wl in filebuffer:
+					writer.writerow(wl)
+						
+					
 		
 class RuntimePathManager:
 	
@@ -74,18 +155,28 @@ class Session:
 		self.rpm = RuntimePathManager(rundir)
 		self.custom_mountdir = None
 		self.session_id = uuid.uuid4()
+		self.jobs = None
 	
 	def setup(self):
 		self.pidfile = self.rpm.getFile('pidfile', create_dir = True)
 		logger.debug('Creating pidfile "%s"', str(self.pidfile))
 		fp = open(self.pidfile, 'w')
 		fp.close()
+		jobfile = self.rpm.getFile('jobs', create_dir = True)
+		self.jobs = JobFile(jobfile)
+		self.jobs.createFile()
 	
 	def cleanup(self):
 		if hasattr(self, 'pidfile'):
 			logger.debug('Deleting pidfile "%s"', str(self.pidfile))
 			if self.pidfile.exists():
 				self.pidfile.unlink()
+	
+	def registerBackup(self, job_name, configfile):
+		self.jobs.register(job_name, configfile, self.session_id)
+	
+	def releaseBackup(self):
+		self.jobs.release(self.session_id)
 	
 	def customizeMountDir(self, mountdir: Path):
 		verify.requireAbsolutePath(mountdir)
