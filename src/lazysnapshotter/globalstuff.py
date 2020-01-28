@@ -38,7 +38,7 @@ default_snapshots = 2
 max_snapshots = 255
 
 
-def printException(e: Exception, trace = True):
+def printException(e: Exception, trace = False):
 	if trace or debug_mode:
 		traceback.print_exc(file = sys.stderr)
 	else:
