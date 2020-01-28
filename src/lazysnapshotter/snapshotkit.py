@@ -15,6 +15,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
+import btrfsutil
 import logging
 import subprocess
 import datetime
@@ -204,16 +205,12 @@ class Snapshot:
 	def create(self, source: Path):
 		if self.existsOnFilesystem():
 			raise globalstuff.Bug
-		command = [ 'btrfs', 'subvolume', 'snapshot', '-r', str(source), str(self.getSnapshotPath()) ]
-		res = subprocess.run(command)
-		res.check_returncode()
+		btrfsutil.create_snapshot(source, self.getSnapshotPath(), read_only = True)
 	
 	def delete(self):
 		if not self.existsOnFilesystem():
 			raise globalstuff.Bug
-		command = [ 'btrfs', 'subvolume', 'delete', str(self.getSnapshotPath()) ]
-		res = subprocess.run(command)
-		res.check_returncode()
+		btrfsutil.delete_subvolume(self.getSnapshotPath())
 
 class FileNameSnapshot(Snapshot):
 	
