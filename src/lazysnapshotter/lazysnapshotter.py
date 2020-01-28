@@ -70,91 +70,93 @@ def _b_error(e: Exception, name: str, reason: str = None, advice:str = None):
 	raise e
 	
 def runBackup(cf, backup_params):
-	name = backup_params[cmdline.ARG_NAME]
-	unmount = not backup_params[cmdline.ARG_NOUMOUNT] #controls if the backup volume will be unmounted after the backup
-	keyfile = backup_params[cmdline.ARG_KEYFILE]
-	unmap = False #controls if the luks volume will be unmapped after the backup
-	cfe = cf.getConfigEntry(name)
-	cf.verifyConfigEntry(name)
-	be = libbackup.BackupEntry(name)
-	backup = libbackup.Backup(be)
-	
-	globalstuff.session.registerBackup(name, globalstuff.config_backups)
-	
-	if configfile.ENTRY_SNAPSHOTS in cfe:
-		be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
-	else:
-		be.setSnapshots(globalstuff.default_snapshots)
-	if configfile.ENTRY_TARGETDIR in cfe:
-			be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
-	be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
-	be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
-				
-	#u_dev: unknown dev, could be a luks device or a partition, as uuid or absolute path
-	u_dev = cfe[configfile.ENTRY_TARGET]
-	
-	if verify.uuid(u_dev):
-			u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
-	logger.debug('Using backup device "{}".'.format(u_dev))
-	backup_device = Path(u_dev)
 	try:
-		#verifyConfigEntry() already validated an absolute path
-		verify.requireExistingPath(backup_device)
-	except verify.VerificationError:
-		raise globalstuff.ApplicationError('Backup device does not exist: "{}".'.format(backup_device))
-	
-	isluks = None
-	try:
-		isluks = mounts.isLuks(backup_device)
-	except CalledProcessError as e:
-		_b_error(e, name, reason = 'Cryptsetup exited with an error when checking if the backup device was a luks container.', \
-		advice = 'Please make sure you have sufficient rights to access the backup device.')
-	try:
-		mountpoint = None
-		be.setTargetDevice(Path(backup_device))
-		if isluks:
-			logger.debug('Backup device is a LUKS container.')
-			mapping = mounts.getLuksMapping(backup_device)
-			if mapping is not None:
-				logger.debug('LUKS container is already open.')
-				backup.setLuksMapping(Path(mapping))
-			else:
-				logger.debug('Opening LUKS container.')
-				unmap = True
-				if configfile.ENTRY_KEYFILE in cfe or keyfile is not None:
-					if keyfile is None:
-						keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
-					try:
-						verify.requireExistingPath(keyfile)
-					except verify.VerificationError as e:
-						raise globalstuff.ApplicationError('Keyfile does not exist: "{}"!'.format(keyfile))
-					backup.openLuks(keyfile = keyfile)
+		name = backup_params[cmdline.ARG_NAME]
+		unmount = not backup_params[cmdline.ARG_NOUMOUNT] #controls if the backup volume will be unmounted after the backup
+		keyfile = backup_params[cmdline.ARG_KEYFILE]
+		unmap = False #controls if the luks volume will be unmapped after the backup
+		cfe = cf.getConfigEntry(name)
+		cf.verifyConfigEntry(name)
+		be = libbackup.BackupEntry(name)
+		backup = libbackup.Backup(be)
+		
+		globalstuff.session.registerBackup(name, globalstuff.config_backups)
+		
+		if configfile.ENTRY_SNAPSHOTS in cfe:
+			be.setSnapshots(int(cfe[configfile.ENTRY_SNAPSHOTS]))
+		else:
+			be.setSnapshots(globalstuff.default_snapshots)
+		if configfile.ENTRY_TARGETDIR in cfe:
+				be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
+		be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
+		be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
+					
+		#u_dev: unknown dev, could be a luks device or a partition, as uuid or absolute path
+		u_dev = cfe[configfile.ENTRY_TARGET]
+		
+		if verify.uuid(u_dev):
+				u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
+		logger.debug('Using backup device "{}".'.format(u_dev))
+		backup_device = Path(u_dev)
+		try:
+			#verifyConfigEntry() already validated an absolute path
+			verify.requireExistingPath(backup_device)
+		except verify.VerificationError:
+			raise globalstuff.ApplicationError('Backup device does not exist: "{}".'.format(backup_device))
+		
+		isluks = None
+		try:
+			isluks = mounts.isLuks(backup_device)
+		except CalledProcessError as e:
+			_b_error(e, name, reason = 'Cryptsetup exited with an error when checking if the backup device was a luks container.', \
+			advice = 'Please make sure you have sufficient rights to access the backup device.')
+		try:
+			mountpoint = None
+			be.setTargetDevice(Path(backup_device))
+			if isluks:
+				logger.debug('Backup device is a LUKS container.')
+				mapping = mounts.getLuksMapping(backup_device)
+				if mapping is not None:
+					logger.debug('LUKS container is already open.')
+					backup.setLuksMapping(Path(mapping))
 				else:
-					backup.openLuks()
-			mountpoint = mounts.getMountpoint(backup.getLuksMapping())
-		else:
-			logger.debug('Backup device is a Partition.')
-			mountpoint = mounts.getMountpoint(be.getTargetDevice())
-		if mountpoint is None:
-			logger.debug('Mounting Partition.')
-			backup.mount(globalstuff.session.getMountDir(create_parent = True))
-		else:
-			logger.debug('Partition is already mounted.')
-			backup.setMountPoint(mountpoint)
-			unmount = False
-		bd = be.getBackupDir()
-		if bd is not None:
-			be.setTargetSnapshotDir(backup.getMountPoint() / bd)
-		else:
-			be.setTargetSnapshotDir(backup.getMountPoint())
-			
-		backup.run()
+					logger.debug('Opening LUKS container.')
+					unmap = True
+					if configfile.ENTRY_KEYFILE in cfe or keyfile is not None:
+						if keyfile is None:
+							keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
+						try:
+							verify.requireExistingPath(keyfile)
+						except verify.VerificationError as e:
+							raise globalstuff.ApplicationError('Keyfile does not exist: "{}"!'.format(keyfile))
+						backup.openLuks(keyfile = keyfile)
+					else:
+						backup.openLuks()
+				mountpoint = mounts.getMountpoint(backup.getLuksMapping())
+			else:
+				logger.debug('Backup device is a Partition.')
+				mountpoint = mounts.getMountpoint(be.getTargetDevice())
+			if mountpoint is None:
+				logger.debug('Mounting Partition.')
+				backup.mount(globalstuff.session.getMountDir(create_parent = True))
+			else:
+				logger.debug('Partition is already mounted.')
+				backup.setMountPoint(mountpoint)
+				unmount = False
+			bd = be.getBackupDir()
+			if bd is not None:
+				be.setTargetSnapshotDir(backup.getMountPoint() / bd)
+			else:
+				be.setTargetSnapshotDir(backup.getMountPoint())
+				
+			backup.run()
+		finally:
+			if unmount:
+				if backup.unmount(tries = 2, interval = 90):
+					backup.removeMountPoint()
+			if unmap:
+				backup.closeLuks()
 	finally:
-		if unmount:
-			if backup.unmount(tries = 2, interval = 90):
-				backup.removeMountPoint()
-		if unmap:
-			backup.closeLuks()
 		globalstuff.session.releaseBackup()
 	
 def run():
