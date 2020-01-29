@@ -15,7 +15,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
-
+import btrfsutil
 import logging
 import subprocess
 import shutil
@@ -240,6 +240,11 @@ class Backup:
 		e = self.getEntry()
 		logging_prefix = '[Backup "{}"] '.format(e.getName())
 		logger.info('%sStarting Backup.', logging_prefix)
+		#forward declarations, do not remove:
+		source_snapshot = None 
+		process_send = None
+		process_receive = None
+		ssd_backup = None
 		try:
 			ssd_source = e.getSourceSnapshotDir()
 			ssd_source.scan()
@@ -251,6 +256,8 @@ class Backup:
 			if len(common_snapshots[0]) > 0:
 				#incremental backup
 				parent_snapshot = common_snapshots[0][-1]
+				if not parent_snapshot < source_snapshot:
+					raise BackupError('The parent snapshot must be older than the current snapshot!')
 				send_command.append('-p')
 				send_command.append(str(parent_snapshot.getSnapshotPath()))
 				send_command.append(str(source_snapshot.getSnapshotPath()))
@@ -263,7 +270,7 @@ class Backup:
 			
 			receive_command = [ shutil.which('btrfs'), 'receive', '-e', str(ssd_backup.getPath()) ]
 			
-			pp = None
+			pp = None #forward declaration, do not remove
 			try:
 				logger.info('%sStarting transfer to the backup drive.', logging_prefix)
 				pp = os.pipe()
@@ -275,32 +282,28 @@ class Backup:
 				process_send = subprocess.Popen(send_command, stdout = pwrite, close_fds = False)
 				process_receive = subprocess.Popen(receive_command, stdin = pread, close_fds = False)
 				
-				return_send = process_send.poll()
-				while return_send is None:
+				while process_send.returncode is None:
 					sleep(1)
-					return_send = process_send.poll()
-				logger.debug('"btrfs send" returned "%s"', str(return_send))
-				
-				return_receive = process_receive.poll()
-				while return_receive is None:
-					sleep(1)
-					return_receive = process_send.poll()
-				logger.debug('"btrfs receive" returned "%s"', str(return_receive))
-			
-				if return_send is 0 and return_receive is 0:
-					logger.info('%sThe new snapshot was successfully transferred to the backup drive.', logging_prefix)
-				if return_send is not 0:
-					#error in btrfs send
-					logger.error('%sBackup failed!', logging_prefix)
-					raise BackupError('btrfs send returned ' + str(return_send))
-				if return_receive is not 0:
-					#error in btrfs receive
-					logger.error('%sBackup failed!', logging_prefix)
-					raise BackupError('btrfs receive returned ' + str(return_receive))
+					process_send.poll()
+				if process_send.returncode != 0:
+					raise BackupError('btrfs send failed with return code {}'.format(process_send.returncode))
+				else:
+					while process_receive.returncode is None:
+						sleep(1)
+						process_receive.poll()
+					if process_receive.returncode != 0:
+						raise BackupError('btrfs receive failed with return code {}'.format(process_receive.returncode))
 			finally:
 				if pp is not None:
 					os.close(pwrite)
 					os.close(pread)
+				if process_send is not None:
+					if process_send.returncode is None:
+						process_send.kill()
+				if process_receive is not None:
+					if process_receive.returncode is None:
+						process_receive.kill()
+				
 			
 			#delete old snapshots:
 			ssd_source.purgeSnapshots()
@@ -308,7 +311,17 @@ class Backup:
 			ssd_backup.purgeSnapshots()
 		except Exception as e:
 			logger.error('%s%s', logging_prefix, e)
-			logger.error('%sThe backup did not run successfully!', logging_prefix)
+			logger.info('%sBackup job did not run successfully!', logging_prefix)
+			if source_snapshot is not None: #rollback on error
+				sp = source_snapshot.getSnapshotPath()
+				if sp.exists():
+					logger.info('Rollback: Deleting subvolume "%s"', str(sp))
+					btrfsutil.delete_subvolume(sp)
+					if process_receive is not None:
+						bsp = ssd_backup.getPath() / str(source_snapshot)
+						if bsp.exists():
+							logger.info('Rollback: Deleting subvolume "%s"', str(bsp))
+							btrfsutil.delete_subvolume(bsp)
 			raise e
 		logger.info('%sBackup job finished successfully.', logging_prefix)
 

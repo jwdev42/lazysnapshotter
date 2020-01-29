@@ -29,6 +29,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+class FakeSnapshotError(Exception):
+	pass
+
 class SnapshotDir:
 	def __init__(self, path: Path, keep = globalstuff.default_snapshots):
 		if not isinstance(path, Path) or not path.is_dir() or not path.is_absolute():
@@ -67,6 +70,8 @@ class SnapshotDir:
 			logger.debug('Started scan of snapshot directory "%s"', str(self.getPath()))
 		for f in self._folder.iterdir():
 			if f.is_dir() and isSnapshotName(str(f.name)):
+				if not btrfsutil.is_subvolume(f):
+					raise FakeSnapshotError('Directory "{}" is not a snapshot!'.format(f.resolve()))
 				s = FileNameSnapshot(self, str(f.name))
 				self._addSnapshot(s)
 			else:
