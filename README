@@ -1,6 +1,10 @@
-This software is experimental and not meant for productive use yet.
-The command line interface still can change.
+This software comes without any warranty. For its license, see LICENSE.
 Documentation is available under "doc", but it is not complete yet.
 
-To run this software successfully, you'll need to have btrfs-tools, cryptsetup and udev installed.
+Dependencies:
+- python >= 3.6
+- btrfs-progs (+python bindings)
+- cryptsetup
+- udev
 
+(c) 2020 Joerg Walter
