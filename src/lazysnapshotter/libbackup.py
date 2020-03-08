@@ -238,8 +238,7 @@ class Backup:
 	
 	def run(self):
 		e = self.getEntry()
-		logging_prefix = '[Backup "{}"] '.format(e.getName())
-		logger.info('%sStarting Backup.', logging_prefix)
+		logger.info('Starting Backup.')
 		#forward declarations, do not remove:
 		source_snapshot = None 
 		process_send = None
@@ -261,18 +260,18 @@ class Backup:
 				send_command.append('-p')
 				send_command.append(str(parent_snapshot.getSnapshotPath()))
 				send_command.append(str(source_snapshot.getSnapshotPath()))
-				logger.info('%sParent Snapshot: "%s".', logging_prefix, str(parent_snapshot.getSnapshotPath()))
+				logger.info('Parent Snapshot: "%s".', str(parent_snapshot.getSnapshotPath()))
 			else:
 				#full backup
 				send_command.append(str(source_snapshot.getSnapshotPath()))
-			logger.info('%sSnapshot: "%s".', logging_prefix, str(source_snapshot.getSnapshotPath()))
-			logger.info('%sTarget Directory: "%s".', logging_prefix, str(ssd_backup.getPath()))
+			logger.info('Snapshot: "%s".', str(source_snapshot.getSnapshotPath()))
+			logger.info('Target Directory: "%s".', str(ssd_backup.getPath()))
 			
 			receive_command = [ shutil.which('btrfs'), 'receive', '-e', str(ssd_backup.getPath()) ]
 			
 			pp = None #forward declaration, do not remove
 			try:
-				logger.info('%sStarting transfer to the backup drive.', logging_prefix)
+				logger.info('Starting transfer to the backup drive.')
 				pp = os.pipe()
 				pread = pp[0]
 				pwrite = pp[1]
@@ -310,8 +309,8 @@ class Backup:
 			ssd_backup.scan()
 			ssd_backup.purgeSnapshots()
 		except Exception as e:
-			logger.error('%s%s', logging_prefix, e)
-			logger.info('%sBackup job did not run successfully!', logging_prefix)
+			logger.error('%s', e)
+			logger.info('Backup job did not run successfully!')
 			if source_snapshot is not None: #rollback on error
 				sp = source_snapshot.getSnapshotPath()
 				if sp.exists():
@@ -323,7 +322,7 @@ class Backup:
 							logger.info('Rollback: Deleting subvolume "%s"', str(bsp))
 							btrfsutil.delete_subvolume(bsp)
 			raise e
-		logger.info('%sBackup job finished successfully.', logging_prefix)
+		logger.info('Backup job finished successfully.')
 
 class BackupError(Exception):
 	"""Raised if something went wrong with the backup."""

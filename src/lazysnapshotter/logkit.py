@@ -22,24 +22,46 @@ from pathlib import Path
 
 class LogKit:
 	
-	frmttr = logging.Formatter(fmt = '%(asctime)s: %(levelname)s - %(message)s', datefmt = '%Y-%m-%d %H:%M:%S', style = '%')
-	rootlogger = logging.getLogger()
+	datestr = '%Y-%m-%d %H:%M:%S'
+	prestr = '%(asctime)s: %(levelname)s'
+	poststr = '%(message)s'
 	
 	def __init__(self, loglevel):
+		self.fmtstrs = dict()
+		self.handlers = list()
 		self.loglevel_priority = 0
-		self.messagehandler = logging.StreamHandler(sys.stderr)
-		self.messagehandler.setFormatter(LogKit.frmttr)
-		LogKit.rootlogger = logging.getLogger()
-		LogKit.rootlogger.setLevel(loglevel)
-		LogKit.rootlogger.addHandler(self.messagehandler)
+		self.formatter = logging.Formatter(fmt = '{} - {}'.format(LogKit.prestr, LogKit.poststr),
+				datefmt = LogKit.datestr, style = '%')
+		messagehandler = logging.StreamHandler(sys.stderr)
+		messagehandler.setFormatter(self.formatter)
+		self.handlers.append(messagehandler)
+		self.rootlogger = logging.getLogger()
+		self.rootlogger.setLevel(loglevel)
+		self.rootlogger.addHandler(messagehandler)
+	
+	def _updateFormatter(self):
+		fstr = LogKit.prestr
+		for v in self.fmtstrs.values():
+			fstr = "{}, {}".format(fstr, v)
+		fstr = "{} - {}".format(fstr, LogKit.poststr)
+		self.formatter = logging.Formatter(fmt = fstr, datefmt = LogKit.datestr, style = '%')
+		for h in self.handlers:
+			h.setFormatter(self.formatter)
 	
 	def addLogFile(self, path: Path):
 		verify.requireAbsolutePath(path)
 		fh = logging.FileHandler(path)
-		fh.setFormatter(LogKit.frmttr)
-		LogKit.rootlogger.addHandler(fh)
+		fh.setFormatter(self.formatter)
+		self.rootlogger.addHandler(fh)
+		self.handlers.append(fh)
 	
 	def setLevel(self, loglevel, priority):
 		if priority >= self.loglevel_priority:
 			self.loglevel_priority = priority
-			LogKit.rootlogger.setLevel(loglevel)
+			self.rootlogger.setLevel(loglevel)
+	
+	def fmtAppend(self, key: str, value: str):
+		self.fmtstrs[key] = value
+		self._updateFormatter()
+	
+	

@@ -77,6 +77,8 @@ def runBackup(cf, backup_params):
 		unmap = False #controls if the luks volume will be unmapped after the backup
 		cfe = cf.getConfigEntry(name)
 		cf.verifyConfigEntry(name)
+		globalstuff.log.fmtAppend('backup_name', 'jobname: {}'.format(name))
+		globalstuff.log.fmtAppend('backup_id', 'jobid: {}'.format(str(globalstuff.session.session_id)))
 		be = libbackup.BackupEntry(name)
 		backup = libbackup.Backup(be)
 		
