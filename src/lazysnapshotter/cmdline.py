@@ -97,10 +97,6 @@ def preAction():
 
 def action():
 	"""Parse rest of the command line after the global options have been processed."""
-	return _action()
-
-def _action():
-	"""Implementation to be called by action()."""
 	res = ProcessedCMDline()
 	if not len(args) > 0:
 		displayValidCommands()
