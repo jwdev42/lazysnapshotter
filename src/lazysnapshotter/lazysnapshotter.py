@@ -89,10 +89,10 @@ def runBackup(cf, backup_params):
 		else:
 			be.setSnapshots(globalstuff.default_snapshots)
 		if configfile.ENTRY_TARGETDIR in cfe:
-				be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
+			be.setBackupDir(Path(cfe[configfile.ENTRY_TARGETDIR]))
 		be.setSourceSubvolume(Path(cfe[configfile.ENTRY_SOURCE]))
 		be.setSourceSnapshotDir(Path(cfe[configfile.ENTRY_SNAPSHOTDIR]))
-					
+		
 		#u_dev: unknown dev, could be a luks device or a partition, as uuid or absolute path
 		u_dev = cfe[configfile.ENTRY_TARGET]
 		
