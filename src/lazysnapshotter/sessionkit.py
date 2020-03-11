@@ -180,6 +180,7 @@ class Session:
 	
 	def customizeMountDir(self, mountdir: Path):
 		verify.requireAbsolutePath(mountdir)
+		verify.requireExistingPath(mountdir)
 		self.custom_mountdir = copy.deepcopy(mountdir)
 	def getMountDir(self, create_parent = False):
 		if self.custom_mountdir is None:
@@ -187,7 +188,6 @@ class Session:
 			mountdir = mounts / Path(str(self.session_id))
 			return mountdir
 		else:
-			return copy.deepcopy(self.custom_mountdir)
-		
-	
+			mountdir = self.custom_mountdir / Path(str(self.session_id))
+			return mountdir
 	
