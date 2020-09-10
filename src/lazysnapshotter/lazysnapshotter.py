@@ -98,12 +98,8 @@ def runBackup(cf, backup_params):
 				u_dev = mounts.getBlockDeviceFromUUID(UUID(u_dev))
 		logger.debug('Using backup device "{}".'.format(u_dev))
 		backup_device = Path(u_dev)
-		try:
-			#verifyConfigEntry() already validated an absolute path
-			verify.requireExistingPath(backup_device)
-		except verify.VerificationError:
-			raise globalstuff.ApplicationError('Backup device does not exist: "{}".'.format(backup_device))
-		
+		#verifyConfigEntry() already validated an absolute path
+		verify.requireExistingPath(backup_device, 'Backup device does not exist: "{}".'.format(backup_device))
 		isluks = None
 		try:
 			isluks = mounts.isLuks(backup_device)
@@ -125,10 +121,7 @@ def runBackup(cf, backup_params):
 					if configfile.ENTRY_KEYFILE in cfe or keyfile is not None:
 						if keyfile is None:
 							keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
-						try:
-							verify.requireExistingPath(keyfile)
-						except verify.VerificationError:
-							raise globalstuff.ApplicationError('Keyfile does not exist: "{}"!'.format(keyfile))
+						verify.requireExistingPath(keyfile, 'Key file does not exist: "{}".'.format(keyfile))
 						backup.openLuks(keyfile = keyfile)
 					else:
 						backup.openLuks()
