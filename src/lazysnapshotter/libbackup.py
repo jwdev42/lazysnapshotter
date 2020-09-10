@@ -138,6 +138,13 @@ class Backup:
 	def getLuksMapping(self):
 		return copy.deepcopy(self._luksmapping)
 	
+	def hasLuksMapping(self):
+		"""Returns True if a luks mapping has been set. Returns false otherwise."""
+		if self._luksmapping is None:
+			return False
+		else:
+			return True
+	
 	def isMounted(self):
 		"""Returns True if the mount()-Method ran successfully and set a mount point. Returns false otherwise."""
 		if self._mountPoint is None:
@@ -208,10 +215,9 @@ class Backup:
 		logger.debug('Device "%s" mounted at "%s".', str(dev), str(self._mountPoint))
 	
 	def unmount(self, tries = 1, interval = 0):
-		verify.requireExistingPath(self._mountPoint)
 		if not self.isMounted():
-			logger.warning('Cannot unmount "%s" as it is not mounted!', str(self._mountPoint))
-			return False
+			raise ValueError("unmount cannot be called on a backup object that has no mount point")
+		verify.requireExistingPath(self._mountPoint)
 		command = [ shutil.which('umount'), str(self._mountPoint) ]
 		while tries > 0:
 			res = subprocess.run(command)

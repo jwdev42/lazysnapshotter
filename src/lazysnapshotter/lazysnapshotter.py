@@ -145,10 +145,14 @@ def runBackup(cf, backup_params):
 			backup.run()
 		finally:
 			if unmount:
-				if backup.unmount(tries = 2, interval = 90):
-					backup.removeMountPoint()
+				if backup.isMounted():
+					if backup.unmount(tries = 2, interval = 90):
+						backup.removeMountPoint()
+					else:
+						logger.warning('Could not unmount the backup volume')
 			if unmap:
-				backup.closeLuks()
+				if backup.hasLuksMapping():
+					backup.closeLuks()
 	finally:
 		globalstuff.session.releaseBackup()
 	
