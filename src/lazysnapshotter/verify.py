@@ -17,7 +17,6 @@
 
 
 import re
-import logging
 from pathlib import Path
 
 from . import globalstuff

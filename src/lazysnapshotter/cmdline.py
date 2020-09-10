@@ -227,7 +227,7 @@ def _do_run(res):
 				p = p.resolve()
 			try:
 				verify.requireExistingPath(p)
-			except verify.VerificationError as e:
+			except verify.VerificationError:
 				raise CommandLineError('Keyfile does not exist: {}'.format(p))
 			res.data[arg] = p
 			args.popleft()

@@ -21,7 +21,6 @@ import subprocess
 import shutil
 import json
 
-from . import globalstuff
 from . import verify
 
 from uuid import UUID
@@ -33,7 +32,7 @@ def readmounts():
 	m = open(_mounts_file, 'r')
 	l = m.readline()
 	mounts = list()
-	while l is not '':
+	while l != '':
 		mounts.append(l.split())
 		l = m.readline()
 	return mounts

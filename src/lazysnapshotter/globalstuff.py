@@ -46,6 +46,7 @@ def printException(e: Exception, trace = False):
 
 class Bug(Exception):
 	def __init__(self, msg = None):
+		global status
 		status = EXIT_BUG
 		if msg is not None:
 			super().__init__(msg)

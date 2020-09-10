@@ -60,7 +60,7 @@ class JobFile:
 	
 	def createFile(self):
 		if not self.jobfile.exists():
-			with open(self.jobfile, 'w') as f:
+			with open(self.jobfile, 'w'):
 				pass
 	
 	def query(self, query: dict) -> list:

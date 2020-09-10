@@ -17,9 +17,7 @@
 
 import btrfsutil
 import logging
-import subprocess
 import datetime
-import os
 import copy
 
 from . import globalstuff
@@ -43,7 +41,7 @@ class SnapshotDir:
 		self._keep = keep
 		self._scanned = False
 		
-	def _addSnapshot(self, snapshot: 'snapshotkit.Snapshot'):
+	def _addSnapshot(self, snapshot):
 		if snapshot.getSnapshotDir() is not self:
 			raise globalstuff.Bug
 		for existing in self._snapshots:
@@ -92,7 +90,7 @@ class SnapshotDir:
 				logger.debug('Ignored items: %s', str(ignoreditems))
 		self._scanned = True
 	
-	def createSnapshot(self, source: Path) -> 'snapshotkit.Snapshot':
+	def createSnapshot(self, source: Path):
 		verify.requireAbsolutePath(source)
 		today = datetime.date.today()
 		indexmm = 0
@@ -118,13 +116,13 @@ class SnapshotDir:
 			else:
 				break
 	
-	def getNewestSnapshot(self) -> 'snapshotkit.Snapshot':
+	def getNewestSnapshot(self):
 		if len(self._snapshots) < 1:
 			return None
 		else:
 			return self._snapshots[-1]
 	
-	def getCommonSnapshots(self, otherdir: 'snapshotkit.SnapshotDir'):
+	def getCommonSnapshots(self, otherdir):
 		common = [ list(), list() ]
 		for s in self._snapshots:
 			for os in otherdir._snapshots:
@@ -234,7 +232,7 @@ class FileNameSnapshot(Snapshot):
 
 def isSnapshotName(name):
 	l = name.split('.')
-	if len(l) is not 2:
+	if len(l) != 2:
 		return False
 	if not verify.isodate(l[0]):
 		return False

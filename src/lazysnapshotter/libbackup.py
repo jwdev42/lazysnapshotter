@@ -19,7 +19,6 @@ import btrfsutil
 import logging
 import subprocess
 import shutil
-import uuid
 import os
 import os.path
 import copy
@@ -112,7 +111,7 @@ class BackupEntry:
 		return copy.deepcopy(self._snapshots)
 
 class Backup:
-	def __init__(self, entry: 'libbackup.BackupEntry'):
+	def __init__(self, entry: BackupEntry):
 		if not isinstance(entry, BackupEntry):
 			raise TypeError('arg 1 must be of libbackup.BackupEntry')
 		self._entry = entry

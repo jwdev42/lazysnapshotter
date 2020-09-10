@@ -18,7 +18,6 @@
 
 import configparser
 import logging
-import copy
 import fcntl
 
 from . import globalstuff
@@ -26,7 +25,6 @@ from . import cmdline
 from . import verify
 from . import util
 
-from uuid import UUID
 from pathlib import Path
 
 #constants:
@@ -86,7 +84,7 @@ class Configfile:
 				fcntl.flock(locker.fileno(), fcntl.LOCK_EX)
 				with open(self._path, 'w') as cf:
 					self._cp.write(cf)
-		except PermissionError as e:
+		except PermissionError:
 			raise ConfigfileError("""You don't have permission to write to the configuration file, your changes have not been saved!
 Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 	

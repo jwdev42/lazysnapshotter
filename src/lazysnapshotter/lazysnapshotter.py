@@ -16,9 +16,7 @@
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
 import logging
-import traceback
 import sys
-import os.path
 
 from . import cmdline
 from . import configfile
@@ -129,7 +127,7 @@ def runBackup(cf, backup_params):
 							keyfile = Path(cfe[configfile.ENTRY_KEYFILE])
 						try:
 							verify.requireExistingPath(keyfile)
-						except verify.VerificationError as e:
+						except verify.VerificationError:
 							raise globalstuff.ApplicationError('Keyfile does not exist: "{}"!'.format(keyfile))
 						backup.openLuks(keyfile = keyfile)
 					else:
@@ -195,7 +193,7 @@ def run():
 				runBackup(cf, pcmd.data)
 			finally:
 				globalstuff.session.cleanup()
-	except NoActionDefinedException as e:
+	except NoActionDefinedException:
 		pass
 	except Exception as e:
 		globalstuff.printException(e)
