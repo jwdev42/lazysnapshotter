@@ -16,9 +16,10 @@
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
 import btrfsutil
-import logging
-import datetime
 import copy
+import datetime
+import logging
+import os
 
 from . import globalstuff
 from . import verify
@@ -31,7 +32,7 @@ class FakeSnapshotError(Exception):
 	pass
 
 class SnapshotDir:
-	def __init__(self, path: Path, keep = globalstuff.default_snapshots):
+	def __init__(self, path: Path, keep = globalstuff.default_snapshots, test: bool = False):
 		if not isinstance(path, Path) or not path.is_dir() or not path.is_absolute():
 			raise globalstuff.Bug('Path error while creating SnapshotDir object')
 		if not verify.snapshot_count(keep):
@@ -40,6 +41,7 @@ class SnapshotDir:
 		self._snapshots = list()
 		self._keep = keep
 		self._scanned = False
+		self._istest = test
 		
 	def _addSnapshot(self, snapshot):
 		if snapshot.getSnapshotDir() is not self:
@@ -68,7 +70,7 @@ class SnapshotDir:
 			logger.debug('Started scan of snapshot directory "%s"', str(self.getPath()))
 		for f in self._folder.iterdir():
 			if f.is_dir() and isSnapshotName(str(f.name)):
-				if not btrfsutil.is_subvolume(f):
+				if not btrfsutil.is_subvolume(f) and not self._istest:
 					raise FakeSnapshotError('Directory "{}" is not a snapshot!'.format(f.resolve()))
 				s = FileNameSnapshot(self, str(f.name))
 				self._addSnapshot(s)
@@ -102,7 +104,7 @@ class SnapshotDir:
 				indexmm = s.getIndex()
 		index = indexmm + 1
 		fname = '{}-{}-{}.{}'.format(ytoiso(today.year), mtoiso(today.month), dtoiso(today.day), index)
-		s = Snapshot(self, fname, today.year, today.month, today.day, index)
+		s = Snapshot(self, fname, today.year, today.month, today.day, index, test = self._istest)
 		s.create(source)
 		self._addSnapshot(s)
 		return s
@@ -137,7 +139,7 @@ class SnapshotDir:
 			print(s)
 
 class Snapshot:
-	def __init__(self, snapshot_dir: SnapshotDir, name_on_filesystem: str, year: int, month: int, day: int, index: int = 1):
+	def __init__(self, snapshot_dir: SnapshotDir, name_on_filesystem: str, year: int, month: int, day: int, index: int = 1, test: bool = False):
 		if not isinstance(snapshot_dir, SnapshotDir):
 			raise TypeError('arg 1 must be of SnapshotDir!')
 		if index < 1:
@@ -148,6 +150,7 @@ class Snapshot:
 		self._month = month
 		self._day = day
 		self._index = index
+		self._istest = test
 		
 	def __str__(self):
 		return copy.deepcopy(self._name_on_filesystem)
@@ -208,12 +211,18 @@ class Snapshot:
 	def create(self, source: Path):
 		if self.existsOnFilesystem():
 			raise globalstuff.Bug
-		btrfsutil.create_snapshot(source, self.getSnapshotPath(), read_only = True)
+		if not self._istest:
+			btrfsutil.create_snapshot(source, self.getSnapshotPath(), read_only = True)
+		else:
+			os.mkdir(self.getSnapshotPath(), mode=0o755)
 	
 	def delete(self):
 		if not self.existsOnFilesystem():
 			raise globalstuff.Bug
-		btrfsutil.delete_subvolume(self.getSnapshotPath())
+		if not self._istest:
+			btrfsutil.delete_subvolume(self.getSnapshotPath())
+		else:
+			os.rmdir(self.getSnapshotPath())
 
 class FileNameSnapshot(Snapshot):
 	
