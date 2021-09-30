@@ -29,6 +29,7 @@ from . import verify
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+session = None
 
 class DuplicateJobException(Exception):
 	pass
@@ -181,13 +182,15 @@ class Session:
 	def customizeMountDir(self, mountdir: Path):
 		verify.requireAbsolutePath(mountdir)
 		verify.requireExistingPath(mountdir)
-		self.custom_mountdir = copy.deepcopy(mountdir)
-	def getMountDir(self, create_parent = False):
+		self.custom_mountdir = mountdir
+	def getMountDir(self, create_parent = False, mkdir = False):
+		mountdir = None
 		if self.custom_mountdir is None:
 			mounts = self.rpm.getDirectory('mounts', create_parent)
 			mountdir = mounts / Path(str(self.session_id))
-			return mountdir
 		else:
 			mountdir = self.custom_mountdir / Path(str(self.session_id))
-			return mountdir
+		if mkdir:
+			os.mkdir(mountdir, mode=0o755)
+		return mountdir
 	

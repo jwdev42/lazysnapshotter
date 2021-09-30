@@ -16,7 +16,9 @@
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
 from dataclasses import dataclass
-
+from pathlib import Path
+from os.path import basename
+from datetime import datetime
 from . import verify
 
 @dataclass
@@ -56,10 +58,14 @@ class BName:
 						return True
 		return False
 		
-		def __gt__(self, other):
-			return other < self
+	def __gt__(self, other):
+		return other < self
+		
+	def __hash__(self):
+		return hash((self.year, self.month, self.day, self.index))
 
 def parse(name: str) -> BName:
+	"""Constructor for BName objects"""
 	if len(name) < 12:
 		raise ParseError('Input string too short')
 	date = name[:10]
@@ -71,6 +77,35 @@ def parse(name: str) -> BName:
 	if not verify.snapshot_revision(index):
 		raise ParseError('Malformed Index')
 	return BName(int(name[:4]), int(name[5:7]), int(name[8:10]), int(name[11:]))
-			
+
+def parse_path(p) -> BName:
+	return parse(basename(p))
+
+def filter(p: Path) -> bool:
+	"""Filter for snapshotkit's scan_dir function"""
+	try:
+		parse_path(p)
+		return True
+	except(ParseError):
+		return False
+
+def filter_date(ts: datetime):
+	"""Returns a filter for snapshotkit's scan_dir function that keeps all snapshots on a specific date"""
+	def _filter(p: Path) -> bool:
+		try:
+			n = parse_path(p)
+			if n.year == ts.year and n.month == ts.month and n.day == ts.day:
+				return True
+		except(ParseError):
+			return False
+		return False
+	return _filter
+
+def newest(names: list) -> BName:
+	if len(names) > 0:
+		names.sort(reverse = True)
+		return names[0]
+	return None
+
 class ParseError(Exception):
 	pass

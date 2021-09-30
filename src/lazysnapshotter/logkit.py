@@ -20,6 +20,8 @@ import sys
 from . import verify
 from pathlib import Path
 
+log = None
+
 class LogKit:
 	
 	datestr = '%Y-%m-%d %H:%M:%S'

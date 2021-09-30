@@ -1,5 +1,5 @@
 #!/usr/bin/env python
 
-from lazysnapshotter import lazysnapshotter
+from lazysnapshotter import main
 
-lazysnapshotter.run()
+main.main()

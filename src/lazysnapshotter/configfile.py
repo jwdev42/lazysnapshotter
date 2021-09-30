@@ -15,18 +15,16 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
-
 import configparser
 import logging
 import fcntl
-
-from . import globalstuff
-from . import cmdline
-from . import verify
-from . import util
-
 from pathlib import Path
-
+from . import cmdline
+from . import globalstuff
+from . import logkit
+from . import sessionkit
+from . import util
+from . import verify
 #constants:
 GLOBAL_LOGFILE = 'logfile'
 GLOBAL_MOUNTDIR = 'mountdir'
@@ -209,16 +207,16 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
 		for k, v in defaults.items():
 			if k == GLOBAL_LOGFILE:
 				p = Path(v)
-				globalstuff.log.addLogFile(p)
+				logkit.log.addLogFile(p)
 			elif k == GLOBAL_LOGLEVEL:
 				ll = util.str_to_loglevel(v)
 				if ll is None:
 					raise ConfigfileError(ERR_INVALID_VALUE.format(sectionName, k, v))
-				globalstuff.log.setLevel(ll, 1)
+				logkit.log.setLevel(ll, 1)
 			elif k == GLOBAL_MOUNTDIR:
 				p = Path(v)
 				verify.requireAbsolutePath(p)
-				globalstuff.session.customizeMountDir(Path(v))
+				sessionkit.session.customizeMountDir(Path(v))
 			elif k == ENTRY_SNAPSHOTS:
 				ss = int(v)
 				if verify.snapshot_count(ss):

@@ -18,8 +18,9 @@
 
 import re
 from pathlib import Path
+from uuid import UUID
 
-from . import globalstuff
+from .globalstuff import max_snapshots
 
 _regexes = dict()
 _regexes['backup_id'] = re.compile('^(\w|\d)(\w|\d|-)*$')
@@ -32,8 +33,12 @@ LOGLEVELS = ( 'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG' )
 def backup_id(backup_id: str):
 	return _regexes['backup_id'].fullmatch(backup_id) is not None and backup_id.upper() != 'DEFAULT'
 
-def uuid(uuid: str):
-	return _regexes['uuid'].fullmatch(uuid) is not None
+def uuid(uuid):
+	if isinstance(uuid, str):
+		return _regexes['uuid'].fullmatch(uuid) is not None
+	elif isinstance(uuid, UUID):
+		return _regexes['uuid'].fullmatch(str(uuid)) is not None
+	return False
 
 def isodate(datestring: str):
 	return _regexes['isodate'].fullmatch(datestring) is not None
@@ -44,7 +49,7 @@ def snapshot_revision(rev: str):
 def snapshot_count(c: int):
 	if not isinstance(c, int):
 		raise TypeError('{}: arg 1 must be of int'.format(snapshot_count.__name__))
-	return 0 < c <= globalstuff.max_snapshots
+	return 0 < c <= max_snapshots
 
 def requireAbsolutePath(path, errmsg = None):
 	if not isinstance(path, Path):

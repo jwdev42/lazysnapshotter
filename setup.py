@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
 		name = 'lazysnapshotter',
-		version = '0.3.1',
+		version = '0.4.0',
 		description = 'Frontend for btrfs-subvolume based backups.',
 		classifiers = [
 			'Development Status :: 3 - Alpha',
@@ -15,7 +15,7 @@ setup(
 		keywords = 'linux btrfs backup',
 		url = 'https://github.com/jwdev42/lazysnapshotter',
 		author = 'Jörg Walter',
-		author_email = 'jwdev42@posteo.de',
+		author_email = 'jwdev@posteo.de',
 		license = 'GPL-3',
 		package_dir = {'': 'src'},
 		packages = find_packages('src'),
