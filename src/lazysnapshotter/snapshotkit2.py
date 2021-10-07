@@ -15,6 +15,8 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
+"""Manage btrfs snapshots"""
+
 from pathlib import Path
 import btrfsutil
 
@@ -43,7 +45,7 @@ def snapshot_dict(snapshots, key_func):
 	for s in snapshots:
 		d[key_func(s)] = s
 	return d
-		
+
 def biggest_common_snapshot(a, b):
 	"""Returns the biggest common snapshot of snapshot dicts a and b. It is determined by reverse sorting the dictionary keys.
 	If such a snapshot is found, a tuple with 2 elements (snapshot a and snapshot b) will be returned.

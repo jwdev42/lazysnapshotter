@@ -21,7 +21,7 @@ import subprocess
 import shutil
 import json
 
-from . import globalstuff, verify
+from . import globalstuff, mount, verify
 
 from enum import Enum
 from uuid import UUID
@@ -175,17 +175,13 @@ class Device:
 		else:
 			self._must_state(DeviceState.INITIALIZED)
 			block_dev = self._dev_point
-		command = [ shutil.which('mount'), str(block_dev), str(mount_point) ]
-		res = subprocess.run(command)
-		res.check_returncode()
+		mount.mount(block_dev, mount_point)
 		self._mount_point = mount_point
 		self._state = DeviceState.MOUNTED
 	
 	def unmount(self):
 		self._must_state(DeviceState.MOUNTED)
-		command = [ shutil.which('umount'), str(self._mount_point) ]
-		res = subprocess.run(command)
-		res.check_returncode()
+		mount.umount(self._mount_point)
 		self._mount_point = None
 		if self.is_luks:
 			self._state = DeviceState.DECRYPTED

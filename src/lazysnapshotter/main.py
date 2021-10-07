@@ -55,7 +55,7 @@ def _fill_backup_entry(e, config, args):
 	if args[cmdline.ARG_KEYFILE] is not None:
 		e.keyfile = args[cmdline.ARG_KEYFILE]
 	elif configfile.ENTRY_KEYFILE in config_entry:
-		e.keyfile = config_entry[configfile.ENTRY_KEYFILE]
+		e.keyfile = Path(config_entry[configfile.ENTRY_KEYFILE])
 	if configfile.ENTRY_SNAPSHOTS in config_entry:
 		e.snapshots = int(config_entry[configfile.ENTRY_SNAPSHOTS])
 	else:
