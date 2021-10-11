@@ -22,38 +22,9 @@ import shutil
 import json
 
 from . import globalstuff, mount, verify
-
 from enum import Enum
 from uuid import UUID
 from pathlib import Path
-
-_mounts_file = '/proc/mounts'
-
-def readmounts():
-	m = open(_mounts_file, 'r')
-	l = m.readline()
-	mounts = list()
-	while l != '':
-		mounts.append(l.split())
-		l = m.readline()
-	return mounts
-
-def deviceMountPoints(dev):
-	"""Counts how many active mount points exist for device dev."""
-	mounts = readmounts()
-	i = 0
-	for l in mounts:
-		if l[0] == dev:
-			i = i + 1
-	return i
-
-def isMountPoint(path):
-	"""Returns true if path is an active mount point."""
-	mounts = readmounts()
-	for l in mounts:
-		if l[1] == path:
-			return True
-	return False
 
 def getBlockDeviceFromUUID(block_uuid: UUID) -> Path:
 	workdir = Path(os.getcwd())
