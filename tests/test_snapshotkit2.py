@@ -47,13 +47,17 @@ def conv_int(data) -> int:
 
 class TestSnapshotkit2(unittest.TestCase):
 	def test_scandir(self):
-		#setup
-		dirs = dev.setup_dirs(Path('/tmp/lazytest/test_scandir'))
-		mnt_point = dirs[dev.DirKey.MOUNTS].joinpath('test')
-		os.mkdir(mnt_point, mode = 0o755)
-		vol = dev.make_volume(dirs, 'test', 50)
-		vol.mount(mnt_point)
+		dirs = None
+		mnt_point = None
+		vol = None
 		try:
+			#setup
+			dirs = dev.setup_dirs(Path('/tmp/lazytest/test_scandir'))
+			mnt_point = dirs[dev.DirKey.MOUNTS].joinpath('test')
+			os.mkdir(mnt_point, mode = 0o755)
+			vol = dev.make_volume(dirs, 'test', 50)
+			vol.mount(mnt_point)
+			#tests
 			self.assertIsNone(snapshotkit2.scan_dir(mnt_point)) #no subvolumes
 			os.mkdir(mnt_point.joinpath('notasnapshot'))
 			self.assertIsNone(snapshotkit2.scan_dir(mnt_point)) #still no subvolumes
@@ -66,22 +70,31 @@ class TestSnapshotkit2(unittest.TestCase):
 			self.assertTrue(len(snapshotkit2.scan_dir(mnt_point, filter_func = filter_int)) == 5) #five subvolumes with names that can be converted to integers
 		finally:
 			#teardown
-			vol.scrap()
-			os.rmdir(mnt_point)
-			dev.scrap_dirs(dirs)
+			if vol is not None:
+				vol.scrap()
+			if mnt_point is not None:
+				os.rmdir(mnt_point)
+			if dirs is not None:
+				dev.scrap_dirs(dirs)
 	
 	def test_biggest_common_snapshot(self):
-		#setup
-		dirs = dev.setup_dirs(Path('/tmp/lazytest/test_biggest_common_snapshot'))
-		m1 = dirs[dev.DirKey.MOUNTS].joinpath('1')
-		m2 = dirs[dev.DirKey.MOUNTS].joinpath('2')
-		os.mkdir(m1, mode = 0o755)
-		os.mkdir(m2, mode = 0o755)
-		v1 = dev.make_volume(dirs, '1', 50)
-		v2 = dev.make_volume(dirs, '2', 50)
-		v1.mount(m1)
-		v2.mount(m2)
+		dirs = None
+		m1 = None
+		m2 = None
+		v1 = None
+		v2 = None
 		try:
+			#setup
+			dirs = dev.setup_dirs(Path('/tmp/lazytest/test_biggest_common_snapshot'))
+			m1 = dirs[dev.DirKey.MOUNTS].joinpath('1')
+			m2 = dirs[dev.DirKey.MOUNTS].joinpath('2')
+			os.mkdir(m1, mode = 0o755)
+			os.mkdir(m2, mode = 0o755)
+			v1 = dev.make_volume(dirs, '1', 50)
+			v2 = dev.make_volume(dirs, '2', 50)
+			v1.mount(m1)
+			v2.mount(m2)
+			#tests
 			make_subvolumes(m1, [8,5,2,6,0,'test',3,'blah'])
 			make_subvolumes(m2, [7,0,2,9,5,'test',6,'blah'])
 			a = snapshotkit2.snapshot_dict(snapshotkit2.scan_dir(m1, filter_func = filter_int), conv_int)
@@ -91,8 +104,13 @@ class TestSnapshotkit2(unittest.TestCase):
 			self.assertTrue(int(str(basename(common[0]))) == 6)
 		finally:
 			#teardown
-			v2.scrap()
-			v1.scrap()
-			os.rmdir(m2)
-			os.rmdir(m1)
-			dev.scrap_dirs(dirs)
+			if v2 is not None:
+				v2.scrap()
+			if v1 is not None:
+				v1.scrap()
+			if m2 is not None:
+				os.rmdir(m2)
+			if m1 is not None:
+				os.rmdir(m1)
+			if dirs is not None:
+				dev.scrap_dirs(dirs)
