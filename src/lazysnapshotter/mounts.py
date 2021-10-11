@@ -27,18 +27,11 @@ from uuid import UUID
 from pathlib import Path
 
 def getBlockDeviceFromUUID(block_uuid: UUID) -> Path:
-	workdir = Path(os.getcwd())
-	try:
-		temp_workdir = Path('/dev/disk/by-uuid/')
-		os.chdir(temp_workdir)
-		symlink = Path(str(block_uuid))
-		verify.requireRelativePath(symlink)
-		verify.requireExistingPath(symlink)
-		resolved_path = Path(os.readlink(symlink))
-		resolved_path = resolved_path.resolve(True)
-	finally:
-		os.chdir(workdir)
-	return resolved_path
+	"""Return the path to a device by its UUID. Return None if no device was found"""
+	symlink = Path('/dev/disk/by-uuid/').joinpath(str(block_uuid))
+	if not symlink.exists():
+		return None
+	return Path(os.readlink(symlink)).resolve()
 
 def isLuks(path):
 	command = [ shutil.which('cryptsetup'), 'isLuks', str(path) ]
@@ -64,6 +57,7 @@ def getLuksMapping(luks_dev) -> Path:
 	return None
 
 def getMountpoint(dev) -> Path:
+	"""Returns the mount point for a given block device or None if no such device or mount point exists"""
 	command = [ shutil.which('lsblk'), '-J', '-p', str(dev) ]
 	res = subprocess.run(command, stdout=subprocess.PIPE)
 	res.check_returncode()
@@ -86,6 +80,9 @@ class StateMismatch(Exception):
 	def __init__(self, expected_state, state):
 		super().__init__('Expected state {}, got state {}'.format(expected_state, state))
 
+class DeviceNotFound(Exception):
+	pass
+
 class Device:
 	dev = None #UUID or Path
 	is_luks: bool = False
@@ -98,10 +95,15 @@ class Device:
 		self.dev = dev
 		if verify.uuid(self.dev):
 			self._dev_point = getBlockDeviceFromUUID(UUID(self.dev))
+			if self._dev_point is None:
+				raise DeviceNotFound(f'No block device found for UUID "{self.dev}"')
 		else:
 			self._dev_point = Path(self.dev)
-			verify.requireAbsolutePath(self._dev_point)
+		verify.requireAbsolutePath(self._dev_point)
+		try:
 			verify.requireExistingPath(self._dev_point)
+		except verify.VerificationError:
+			raise DeviceNotFound(f'Block device "{str(self._dev_point)}" does not exist')
 		self.is_luks = isLuks(self._dev_point)
 		self._state = DeviceState.INITIALIZED
 	
