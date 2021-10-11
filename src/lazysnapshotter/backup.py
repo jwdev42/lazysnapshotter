@@ -15,11 +15,12 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see https://www.gnu.org/licenses.
 
+import btrfsutil
 import logging
 import shutil
 import subprocess
 import uuid
-from . import bnames, globalstuff, mounts, sessionkit, snapshotkit2, verify
+from . import bnames, globalstuff, logkit, mounts, sessionkit, snapshotkit2, verify
 from .transact import Transact
 from .diff import snapshot_diff
 from dataclasses import dataclass
@@ -127,4 +128,36 @@ def _create_name(snapshot_dir: Path, backup_dir: Path) -> str:
 		return str(snapshot)
 	ts = datetime.today()
 	return str(bnames.BName(year = ts.year, month = ts.month, day = ts.day, index = 1))
-		
+
+def run(entry: Entry):
+	entry.verify()
+	sessionkit.session.registerBackup(entry.name, globalstuff.config_backups)
+	try:
+		logkit.log.fmtAppend('backup_name', 'jobname: {}'.format(entry.name))
+		logkit.log.fmtAppend('backup_id', 'jobid: {}'.format(str(sessionkit.session.session_id)))
+		dev = mounts.device_by_state(entry.backup_volume)
+		try:
+			logger.info('Arming backup drive')
+			dev.arm(sessionkit.session.getMountDir(create_parent = True, mkdir = True),
+			luks_name = str(sessionkit.session.session_id), keyfile = entry.keyfile)
+			backup_dir = None
+			if entry.backup_dir_relative is not None:
+				backup_dir = dev.mountPoint().joinpath(entry.backup_dir_relative)
+			else:
+				backup_dir = dev.mountPoint()
+			logger.info('Starting backup')
+			send_and_receive(entry.source, entry.snapshot_dir, backup_dir)
+			logger.info('Removing old snapshots')
+			purge_old_snapshots(entry.snapshot_dir, entry.snapshots)
+			purge_old_snapshots(backup_dir, entry.snapshots)
+			logger.info('Syncing backup drive')
+			trans_id = btrfsutil.start_sync(dev.mountPoint())
+			btrfsutil.wait_sync(dev.mountPoint(), trans_id)
+		finally:
+			if entry.flag_unmount:
+				logger.info('Disarming backup drive')
+				dev.disarm()
+			else:
+				logger.info('Backup drive stays online through user request')
+	finally:
+		sessionkit.session.releaseBackup()

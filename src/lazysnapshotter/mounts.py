@@ -28,10 +28,11 @@ from pathlib import Path
 
 def getBlockDeviceFromUUID(block_uuid: UUID) -> Path:
 	"""Return the path to a device by its UUID. Return None if no device was found"""
-	symlink = Path('/dev/disk/by-uuid/').joinpath(str(block_uuid))
+	base = Path('/dev/disk/by-uuid/')
+	symlink = base.joinpath(str(block_uuid))
 	if not symlink.exists():
 		return None
-	return Path(os.readlink(symlink)).resolve()
+	return base.joinpath(Path(os.readlink(symlink))).resolve()
 
 def isLuks(path):
 	command = [ shutil.which('cryptsetup'), 'isLuks', str(path) ]

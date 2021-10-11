@@ -19,7 +19,7 @@ import btrfsutil
 import logging
 import sys
 from pathlib import Path
-from . import backup, cmdline, configfile, globalstuff, logkit, mounts, sessionkit, verify
+from . import backup, backuputil, cmdline, configfile, globalstuff, logkit, mounts, sessionkit, verify
 
 logger = logging.getLogger(__name__)
 
@@ -47,63 +47,6 @@ def _loadConfig():
 	cf.read()
 	cf.loadGlobals()
 	return cf
-
-def _fill_backup_entry(e, config, args):
-	config_entry = config.getConfigEntry(e.name)
-	config.verifyConfigEntry(e.name)
-	e.flag_unmount = not args[cmdline.ARG_NOUMOUNT]
-	if args[cmdline.ARG_KEYFILE] is not None:
-		e.keyfile = args[cmdline.ARG_KEYFILE]
-	elif configfile.ENTRY_KEYFILE in config_entry:
-		e.keyfile = Path(config_entry[configfile.ENTRY_KEYFILE])
-	if configfile.ENTRY_SNAPSHOTS in config_entry:
-		e.snapshots = int(config_entry[configfile.ENTRY_SNAPSHOTS])
-	else:
-		e.snapshots = globalstuff.default_snapshots
-	if configfile.ENTRY_TARGETDIR in config_entry:
-		e.backup_dir_relative = Path(config_entry[configfile.ENTRY_TARGETDIR])
-	e.source = Path(config_entry[configfile.ENTRY_SOURCE])
-	e.snapshot_dir = Path(config_entry[configfile.ENTRY_SNAPSHOTDIR])
-	if verify.uuid(config_entry[configfile.ENTRY_TARGET]):
-		e.backup_volume = config_entry[configfile.ENTRY_TARGET]
-	else:
-		e.backup_volume = Path(config_entry[configfile.ENTRY_TARGET])
-	e.verify()
-
-def _run_backup(config, args):
-	entry = backup.Entry(name = args[cmdline.ARG_NAME])
-	sessionkit.session.registerBackup(entry.name, globalstuff.config_backups)
-	try:
-		_fill_backup_entry(entry, config, args)
-		logkit.log.fmtAppend('backup_name', 'jobname: {}'.format(entry.name))
-		logkit.log.fmtAppend('backup_id', 'jobid: {}'.format(str(sessionkit.session.session_id)))
-		
-		dev = mounts.device_by_state(entry.backup_volume)
-		try:
-			logger.info('Arming backup drive')
-			dev.arm(sessionkit.session.getMountDir(create_parent = True, mkdir = True),
-			luks_name = str(sessionkit.session.session_id), keyfile = entry.keyfile)
-			backup_dir = None
-			if entry.backup_dir_relative is not None:
-				backup_dir = dev.mountPoint().joinpath(entry.backup_dir_relative)
-			else:
-				backup_dir = dev.mountPoint()
-			logger.info('Starting backup')
-			backup.send_and_receive(entry.source, entry.snapshot_dir, backup_dir)
-			logger.info('Removing old snapshots')
-			backup.purge_old_snapshots(entry.snapshot_dir, entry.snapshots)
-			backup.purge_old_snapshots(backup_dir, entry.snapshots)
-			logger.info('Syncing backup drive')
-			trans_id = btrfsutil.start_sync(dev.mountPoint())
-			btrfsutil.wait_sync(dev.mountPoint(), trans_id)
-		finally:
-			if entry.flag_unmount:
-				logger.info('Disarming backup drive')
-				dev.disarm()
-			else:
-				logger.info('Backup drive stays online through user request')
-	finally:
-		sessionkit.session.releaseBackup()
 
 class NoActionDefinedException(Exception):
 	pass
@@ -143,7 +86,7 @@ def main():
 		elif pcmd.action == cmdline.ACTION_RUN:
 			try:
 				sessionkit.session.setup()
-				_run_backup(cf, pcmd.data)
+				backup.run(backuputil.create_backup_entry(cf, pcmd.data))
 			finally:
 				sessionkit.session.cleanup()
 	except NoActionDefinedException:
