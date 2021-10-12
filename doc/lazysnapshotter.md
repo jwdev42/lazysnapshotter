@@ -57,8 +57,11 @@ snapshots on the source drive with those on the backup drive.
 If a common snapshot is found, a new incremental backup
 will be made based on that snapshot. Otherwise a full backup will be started.
 
-If the backup succeeded, old snapshots will be deleted if there are
-more than the defined maximum.
+A backup in progress will use its backup ID as a temporary name for the newly created snapshots.
+
+If the backup succeeded, it will be comitted by renaming its snapshots.
+If the total number of snapshots in a snapshot directory exceeds the defined number of snapshots to be kept,
+old snapshots will be deleted until the number of snapshots is within limits again.
 The backup partition as well as the LUKS container will be unmounted or closed again
 if they were mounted or opened by lazysnapshotter before.
 

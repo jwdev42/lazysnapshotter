@@ -1,10 +1,18 @@
 This software comes without any warranty. For its license, see LICENSE.
-Documentation is available under "doc", but it is not complete yet.
+Documentation is available in the 'doc' folder.
 
 Dependencies:
-- python >= 3.6
-- btrfs-progs (+python bindings)
+- python >= 3.9
+- btrfs-progs with python bindings
+- util-linux with libmount python bindings
 - cryptsetup
 - udev
 
-(c) 2020 Joerg Walter
+Tests:
+- Tests must be run as root.
+- /tmp must have 200MB of free space.
+- All temporary files for testing will be created inside /tmp/lazytest.
+- Special file /dev/loop-control must exist and be functional (you'll need kernel >= 3.19).
+- Run tests via 'python -m unittest' in the project's root folder.
+
+(c) 2020-2021 Joerg Walter

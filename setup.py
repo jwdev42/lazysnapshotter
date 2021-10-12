@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
 		name = 'lazysnapshotter',
-		version = '0.4.0',
+		version = '0.4.0-dev',
 		description = 'Frontend for btrfs-subvolume based backups.',
 		classifiers = [
 			'Development Status :: 3 - Alpha',
