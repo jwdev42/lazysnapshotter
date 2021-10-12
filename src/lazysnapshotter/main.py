@@ -19,7 +19,7 @@ import logging
 import sys
 from pathlib import Path
 
-from . import backup, backuputil, cmdline, configfile, globalstuff, logkit, sessionkit, util
+from . import backup, backuputil, cmdline, configfile, globalstuff, logkit, sessionkit
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def _globalcmdline():
         elif k == cmdline.ARG_PRE_LOGFILE:
             logkit.log.addLogFile(Path(v))
         elif k == cmdline.ARG_PRE_LOGLEVEL:
-            ll = util.str_to_loglevel(v)
+            ll = logkit.str_to_loglevel(v)
             if ll is None:
                 raise globalstuff.Bug
             logkit.log.setLevel(ll, 2)

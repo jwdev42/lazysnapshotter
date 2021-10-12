@@ -68,3 +68,18 @@ class LogKit:
     def fmtAppend(self, key: str, value: str):
         self.fmtstrs[key] = value
         self._updateFormatter()
+
+
+def str_to_loglevel(loglevel: str):
+    if loglevel == 'CRITICAL':
+        return logging.CRITICAL
+    elif loglevel == 'ERROR':
+        return logging.ERROR
+    elif loglevel == 'WARNING':
+        return logging.WARNING
+    elif loglevel == 'INFO':
+        return logging.INFO
+    elif loglevel == 'DEBUG':
+        return logging.DEBUG
+    else:
+        return None

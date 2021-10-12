@@ -23,7 +23,6 @@ from . import cmdline
 from . import globalstuff
 from . import logkit
 from . import sessionkit
-from . import util
 from . import verify
 # constants:
 GLOBAL_LOGFILE = 'logfile'
@@ -218,7 +217,7 @@ Configuration file location: \"{}\"""".format(globalstuff.config_backups))
                 p = Path(v)
                 logkit.log.addLogFile(p)
             elif k == GLOBAL_LOGLEVEL:
-                ll = util.str_to_loglevel(v)
+                ll = logkit.str_to_loglevel(v)
                 if ll is None:
                     raise ConfigfileError(
                         ERR_INVALID_VALUE.format(sectionName, k, v))
