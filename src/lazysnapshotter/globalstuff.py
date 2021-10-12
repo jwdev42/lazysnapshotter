@@ -1,31 +1,30 @@
 #!/usr/bin/env python
 
-#lazysnapshotter - a backup tool using btrfs
-#Copyright (C) 2020 Joerg Walter
+# lazysnapshotter - a backup tool using btrfs
+# Copyright (C) 2020 Joerg Walter
 #
-#This program is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation, version 3 of the License.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
 #
-#This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#You should have received a copy of the GNU General Public License
-#along with this program.  If not, see https://www.gnu.org/licenses.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see https://www.gnu.org/licenses.
 
 
-import logging
 import traceback
 import sys
 from pathlib import Path
 
-#Exit Codes:
-EXIT_SUCCESS = 0 #normal program exit
-EXIT_FAILURE = 1 #generic error
-EXIT_COMMANDLINE = 2 #Error while processing the command line arguments
-EXIT_BUG = 23 #a bug was triggered
+# Exit Codes:
+EXIT_SUCCESS = 0  # normal program exit
+EXIT_FAILURE = 1  # generic error
+EXIT_COMMANDLINE = 2  # Error while processing the command line arguments
+EXIT_BUG = 23  # a bug was triggered
 
 config_backups = Path('/etc/lazysnapshotter/backups.conf')
 status = EXIT_SUCCESS
@@ -35,16 +34,17 @@ max_snapshots = sys.maxsize - 1
 
 
 def printException(e: Exception):
-	traceback.print_exc(file = sys.stderr)
+    traceback.print_exc(file=sys.stderr)
 
 
 class Bug(Exception):
-	def __init__(self, msg = None):
-		global status
-		status = EXIT_BUG
-		if msg is not None:
-			super().__init__(msg)
+    def __init__(self, msg=None):
+        global status
+        status = EXIT_BUG
+        if msg is not None:
+            super().__init__(msg)
+
 
 class ApplicationError(Exception):
-	"""Generic Exception raised by code in this app."""
-	pass
+    """Generic Exception raised by code in this app."""
+    pass
