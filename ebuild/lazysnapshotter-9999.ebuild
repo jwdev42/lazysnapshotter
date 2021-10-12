@@ -22,6 +22,8 @@ DEPEND=">=sys-fs/btrfs-progs-5.4[python]
 				virtual/udev"
 RDEPEND="${DEPEND}"
 
+RESTRICT="test"
+
 python_install_all() {
 	distutils-r1_python_install_all
 	#move admin scripts to sbin
