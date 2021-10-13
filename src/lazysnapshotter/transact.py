@@ -74,6 +74,7 @@ class Transact:
                 directory, '{} directory must be an absolute path')
             if not isdir(directory) and mkdirs:
                 os.mkdir(directory, mode=0o755)
+                logger.debug('Created directory "%s"', directory)
             if not isdir(directory):
                 raise TransactionError('{} directory not found'.format(name))
 
@@ -90,6 +91,8 @@ class Transact:
         btrfsutil.create_snapshot(
             self.source, self._src_prelim_snapshot(), read_only=True)
         self._snapshots[SnapshotType.SRC] = self._src_prelim_snapshot()
+        logger.debug('Created preliminary snapshot "%s"',
+                     self._snapshots[SnapshotType.SRC])
         self._state = State.PRELIM_SNAPSHOT
 
     def send(self, parent: Path, send_func):
@@ -100,20 +103,19 @@ class Transact:
             raise e
         finally:
             if isdir(self._dst_prelim_snapshot()):
-                logger.debug('Received preliminary snapshot on the backup drive: {}'.format(
-                    str(self._dst_prelim_snapshot())))
                 self._snapshots[SnapshotType.DST] = self._dst_prelim_snapshot()
+                logger.debug('Received preliminary snapshot "%s"',
+                             self._snapshots[SnapshotType.DST])
             else:
                 raise TransactionError(
-                    'Preliminary snapshot should have been created on the backup drive, but wasn\'t')
+                    'Preliminary snapshot wasn\'t created on the backup drive')
         self._state = State.SENT
 
     def rename(self, name: str):
         def rename_snapshot(key: str, src, dst):
-            logger.debug('Renaming preliminary snapshot "{}" to "{}"'.format(
-                str(src), str(dst)))
             os.rename(src, dst)
             self._snapshots[key] = dst
+            logger.debug('Renamed "%s" to "%s"', src, dst)
         self._must_state(State.SENT)
         rename_snapshot(SnapshotType.SRC, self._src_prelim_snapshot(),
                         self.snapshot_dir.joinpath(name))
@@ -123,6 +125,6 @@ class Transact:
 
     def rollback(self):
         for v in self._snapshots.values():
-            logger.debug('Rollback: Deleting snapshot "{}"'.format(str(v)))
             btrfsutil.delete_subvolume(v)
+            logger.debug('Rollback: Removed snapshot "%s"', v)
         self._state = State.UNDONE
