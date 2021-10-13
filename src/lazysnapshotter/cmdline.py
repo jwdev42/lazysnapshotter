@@ -74,20 +74,15 @@ class ListData():
         self.entries = list()
 
 
-def displayValidCommands():
-    print('Valid commands:')
-    print('\t{}'.format(ACTION_GLOBAL))
-    print('\t{}'.format(ACTION_ADD))
-    print('\t{}'.format(ACTION_MODIFY))
-    print('\t{}'.format(ACTION_REMOVE))
-    print('\t{}'.format(ACTION_LIST))
-    print('\t{}'.format(ACTION_RUN))
+def validCommands() -> str:
+    """Return a description string of the available commands"""
+    return 'Valid commands:\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}'.format(
+        ACTION_GLOBAL, ACTION_ADD, ACTION_MODIFY, ACTION_REMOVE, ACTION_LIST, ACTION_RUN)
 
 
-def displayEntryExample():
-    print('Minimal backup entry example:')
-    print('\t{} example {} /my/subvolume/I/want/to/save {} /my/snapshots {} /dev/sdf2'
-          .format(ARG_NAME, ARG_SOURCE, ARG_SNAPSHOTDIR, ARG_TARGET))
+def exampleBackupEntry() -> str:
+    """Return a string that describes a minimalistic backup entry creation"""
+    return 'Minimal backup entry example:\n\t{} example {} /my/subvolume/I/want/to/save {} /my/snapshots {} /dev/sdf2'.format(ARG_NAME, ARG_SOURCE, ARG_SNAPSHOTDIR, ARG_TARGET)
 
 
 def isEntryComplete(data):
@@ -106,18 +101,14 @@ def preAction():
 def action():
     """Parse rest of the command line after the global options have been processed."""
     res = ProcessedCMDline()
-    if not len(args) > 0:
-        displayValidCommands()
-        return None
     if len(args) > 0:
         res.action = args[0]
         args.popleft()
         if res.action == ACTION_ADD:
             res = _do_add(res)
             if not isEntryComplete(res.data):
-                displayEntryExample()
                 raise CommandLineError(
-                    'You entered an incomplete backup entry!')
+                    'You entered an incomplete backup entry!\n\n{}'.format(exampleBackupEntry()))
             return res
         elif res.action == ACTION_MODIFY:
             return _do_modify(res)
@@ -130,11 +121,11 @@ def action():
         elif res.action == ACTION_GLOBAL:
             return _do_global(res)
         else:
-            displayValidCommands()
-            raise CommandLineError(ERR_INVALID_COMMAND.format(res.action))
+            raise CommandLineError('{}\n\n{}'.format(
+                ERR_INVALID_COMMAND.format(res.action), validCommands()))
     else:
-        displayValidCommands()
-        raise CommandLineError('No command given!')
+        raise CommandLineError(
+            'You did not specify a command!\n\n{}'.format(validCommands()))
     return None
 
 
