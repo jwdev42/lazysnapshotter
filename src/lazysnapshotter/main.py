@@ -17,6 +17,7 @@
 
 import logging
 import sys
+import traceback
 from pathlib import Path
 
 from . import backup, backuputil, cmdline, configfile, globalstuff, logkit, sessionkit
@@ -95,10 +96,10 @@ def main():
                 sessionkit.session.cleanup()
     except NoActionDefinedException:
         pass
+    except cmdline.CommandLineError as e:
+        print(e, file=sys.stderr)
     except Exception as e:
-        globalstuff.printException(e)
-        if globalstuff.status == globalstuff.EXIT_SUCCESS:
-            globalstuff.status = globalstuff.EXIT_FAILURE
+        logging.critical(e)
+        traceback.print_exc(file=sys.stderr)
     finally:
         logging.shutdown()
-        sys.exit(globalstuff.status)

@@ -368,8 +368,5 @@ def _do_global(res):
 
 
 class CommandLineError(Exception):
-    def __init__(self, msg=None):
-        globalstuff.status = globalstuff.EXIT_COMMANDLINE
-        if msg is not None:
-            super().__init__(msg)
+    """Thrown on invalid command line"""
     pass
