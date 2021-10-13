@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see https://www.gnu.org/licenses.
 
-
+import logging
 import os
 import subprocess
 import shutil
@@ -25,6 +25,8 @@ from uuid import UUID
 from pathlib import Path
 
 from . import globalstuff, mount, verify
+
+logger = logging.getLogger(__name__)
 
 
 def getBlockDeviceFromUUID(block_uuid: UUID) -> Path:
@@ -116,6 +118,8 @@ class Device:
             raise DeviceNotFound(
                 f'Block device "{str(self._dev_point)}" does not exist')
         self.is_luks = isLuks(self._dev_point)
+        logger.debug(
+            'Initialized Device object with block device "%s"', self._dev_point)
         self._state = DeviceState.INITIALIZED
 
     def __repr__(self):
@@ -139,6 +143,8 @@ class Device:
         res = subprocess.run(command)
         res.check_returncode()
         self._crypt_point = Path('/dev/mapper/').joinpath(name)
+        logger.debug('Mapped LUKS device "%s" to "%s"',
+                     self._dev_point, self._crypt_point)
         self._state = DeviceState.DECRYPTED
 
     def luksClose(self):
@@ -146,6 +152,7 @@ class Device:
         command = [shutil.which('cryptsetup'), 'close', str(self._crypt_point)]
         res = subprocess.run(command)
         res.check_returncode()
+        logger.debug('Removed LUKS mapping "%s"', self._crypt_point)
         self._crypt_point = None
         self._state = DeviceState.INITIALIZED
 
@@ -162,11 +169,13 @@ class Device:
             block_dev = self._dev_point
         mount.mount(block_dev, mount_point)
         self._mount_point = mount_point
+        logger.debug('Mounted device "%s" to "%s"', block_dev, mount_point)
         self._state = DeviceState.MOUNTED
 
     def unmount(self):
         self._must_state(DeviceState.MOUNTED)
         mount.umount(self._mount_point)
+        logger.debug('Unmounted "%s"', self._mount_point)
         self._mount_point = None
         if self.is_luks:
             self._state = DeviceState.DECRYPTED
@@ -212,11 +221,19 @@ def device_by_state(dev) -> Device:
         mnt = getMountpoint(dev)
         if mnt is not None:
             new_dev._mount_point = mnt
+            if new_dev.is_luks:
+                logger.debug('LUKS device "%s" is already mounted at "%s"',
+                             new_dev._crypt_point, new_dev._mount_point)
+            else:
+                logger.debug('Device "%s" is already mounted at "%s"',
+                             new_dev._dev_point, new_dev._mount_point)
             new_dev._state = DeviceState.MOUNTED
     if new_dev.is_luks:
         mapping = getLuksMapping(new_dev._dev_point)
         if mapping is not None:
             new_dev._crypt_point = mapping
+            logger.debug('LUKS device "%s" is already mapped to "%s"',
+                         new_dev._dev_point, new_dev._crypt_point)
             new_dev._state = DeviceState.DECRYPTED
             chk_mnt(new_dev._crypt_point)
     else:
