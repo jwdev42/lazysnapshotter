@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # lazysnapshotter - a backup tool using btrfs
-# Copyright (C) 2020 Joerg Walter
+# Copyright (C) 2020-2022 Joerg Walter
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 from pathlib import Path
 
-import libmount
+import subprocess
 
 
 class MountError(Exception):
@@ -29,15 +29,18 @@ class MountError(Exception):
 
 def mount(source: Path, target: Path):
     '''Mount source to target'''
-    ctx = libmount.Context(source=str(source), target=str(target))
-    ctx.mount()
-    if ctx.status < 0:
-        raise MountError(f'mount failed with status {ctx.status}')
+    cmd = ['mount']
+    cmd.append(str(source))
+    cmd.append(str(target))
+    ret = subprocess.run(cmd)
+    if ret.returncode != 0:
+        raise MountError(f'mount failed with status {ret.returncode}')
 
 
 def umount(target: Path):
     '''Unmount target'''
-    ctx = libmount.Context(target=str(target))
-    ctx.umount()
-    if ctx.status < 0:
-        raise MountError(f'umount failed with status {ctx.status}')
+    cmd = ['umount']
+    cmd.append(str(target))
+    ret = subprocess.run(cmd)
+    if ret.returncode != 0:
+        raise MountError(f'umount failed with status {ret.returncode}')
