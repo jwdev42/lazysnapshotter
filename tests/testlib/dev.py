@@ -16,12 +16,13 @@
 # along with this program.  If not, see https://www.gnu.org/licenses.
 
 import fcntl
+import logging
 import subprocess
 import os
 from enum import Enum
 from pathlib import Path
 
-from lazysnapshotter import mount
+from lazysnapshotter import mount, verify
 
 
 def create_file(path: Path, size: int):
@@ -47,13 +48,17 @@ def make_btrfs(dev: Path, label: str = None):
         cmd.append(label)
     cmd.append(str(dev))
     subprocess.run(cmd).check_returncode()
+    logging.debug('Created btrfs filesystem at %s', dev)
 
 
 def make_volume(dir_struct: dict, name: str, size: int):
-    f = File(dir_struct[DirKey.LOOP_FILES].joinpath(name), size)
     loop = Loop(File(dir_struct[DirKey.LOOP_FILES].joinpath(name), size))
-    loop.activate()
-    make_btrfs(loop.device(), label=name)
+    try:
+        loop.activate()
+        make_btrfs(loop.device(), label=name)
+    except Exception as e:
+        loop.scrap()
+        raise e
     return Volume(loop)
 
 
@@ -62,16 +67,23 @@ def setup_dirs(base_path: Path) -> dict:
     dirs[DirKey.ROOT] = base_path.resolve()
     dirs[DirKey.LOOP_FILES] = base_path.joinpath('loop')
     dirs[DirKey.MOUNTS] = base_path.joinpath('mnt')
-    os.makedirs(dirs[DirKey.ROOT], mode=0o755)
-    os.mkdir(dirs[DirKey.LOOP_FILES], mode=0o755)
-    os.mkdir(dirs[DirKey.MOUNTS], mode=0o755)
+    try:
+        os.makedirs(dirs[DirKey.ROOT], mode=0o755)
+        os.mkdir(dirs[DirKey.LOOP_FILES], mode=0o755)
+        os.mkdir(dirs[DirKey.MOUNTS], mode=0o755)
+    except Exception as e:
+        scrap_dirs(dirs)
+        raise e
     return dirs
 
 
 def scrap_dirs(dirs: dict):
-    os.rmdir(dirs[DirKey.MOUNTS])
-    os.rmdir(dirs[DirKey.LOOP_FILES])
-    os.rmdir(dirs[DirKey.ROOT])
+    for key in (DirKey.MOUNTS, DirKey.LOOP_FILES, DirKey.ROOT):
+        try:
+            os.rmdir(dirs[key])
+            logging.debug('removed directory %s', dirs[key])
+        except FileNotFoundError as fnf:
+            logging.error(fnf)
 
 
 class DirKey(Enum):
@@ -128,12 +140,14 @@ class Loop:
         proc = subprocess.run(['losetup', str(loop), self._f.path()])
         proc.check_returncode()
         self.dev = loop
+        logging.debug('Activated loop device %s for file %s', self.dev, self._f.path())
 
     def deactivate(self):
         if self.dev is None:
             return
         proc = subprocess.run(['losetup', '-d', self.dev])
         proc.check_returncode()
+        logging.debug('Deactivated loop device %s', self.dev)
         self.dev = None
 
     def device(self) -> Path:
@@ -164,11 +178,13 @@ class Volume:
             raise Exception('loop device not active')
         mount.mount(self._loop.device(), mount_point.resolve())
         self._mount_point = mount_point.resolve()
+        logging.debug('Mounted %s at %s', self._loop.device(), self._mount_point)
 
     def umount(self):
         if self._mount_point is None:
             return
         mount.umount(self.mountPoint())
+        logging.debug('Unmounted %s', self._mount_point)
         self._mount_point = None
 
     def scrap(self):

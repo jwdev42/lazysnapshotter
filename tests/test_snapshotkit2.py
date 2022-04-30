@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see https://www.gnu.org/licenses.
 
+import time
 import os
 import unittest
 from pathlib import Path
@@ -61,7 +62,7 @@ class TestSnapshotkit2(unittest.TestCase):
             dirs = dev.setup_dirs(Path('/tmp/lazytest/test_scandir'))
             mnt_point = dirs[dev.DirKey.MOUNTS].joinpath('test')
             os.mkdir(mnt_point, mode=0o755)
-            vol = dev.make_volume(dirs, 'test', 50)
+            vol = dev.make_volume(dirs, 'test', 125)
             vol.mount(mnt_point)
             # tests
             self.assertIsNone(snapshotkit2.scan_dir(
@@ -84,6 +85,7 @@ class TestSnapshotkit2(unittest.TestCase):
         finally:
             # teardown
             if vol is not None:
+                time.sleep(2) # mount point might still be busy
                 vol.scrap()
             if mnt_point is not None:
                 os.rmdir(mnt_point)
@@ -104,8 +106,8 @@ class TestSnapshotkit2(unittest.TestCase):
             m2 = dirs[dev.DirKey.MOUNTS].joinpath('2')
             os.mkdir(m1, mode=0o755)
             os.mkdir(m2, mode=0o755)
-            v1 = dev.make_volume(dirs, '1', 50)
-            v2 = dev.make_volume(dirs, '2', 50)
+            v1 = dev.make_volume(dirs, '1', 125)
+            v2 = dev.make_volume(dirs, '2', 125)
             v1.mount(m1)
             v2.mount(m2)
             # tests
